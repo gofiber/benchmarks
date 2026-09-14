@@ -1,4 +1,7 @@
-# gofiber/benchmarks
+<p align="center">
+  <img height="125" alt="Fiber Benchmarks" src="https://raw.githubusercontent.com/gofiber/benchmarks/main/.github/logo-dark.svg#gh-dark-mode-only" />
+  <img height="125" alt="Fiber Benchmarks" src="https://raw.githubusercontent.com/gofiber/benchmarks/main/.github/logo.svg#gh-light-mode-only" />
+</p>
 
 In-process request benchmarks for Fiber v2 and v3. Each scenario is written against the version's own API, and each version builds with the dependencies it ships with.
 
