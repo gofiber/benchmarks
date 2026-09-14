@@ -234,8 +234,9 @@ function parse(csv) {
     if (!unit || cells[0] === 'geomean') continue;
     const [name, v2, ci2, v3, ci3, delta, p] = cells;
     const row = { name: name.replace(/^Request\//, ''), v2: Number(v2), ci2, v3: Number(v3), ci3, delta, p };
-    row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' ? 'neutral' : row.v3 < row.v2 ? 'better' : 'worse';
+    // benchstat prints ? when the v2 median is 0, a new cost has no finite percentage
     row.pct = delta.endsWith('%') ? parseFloat(delta) : row.v2 === 0 ? (row.v3 === 0 ? 0 : Infinity) : (row.v3 / row.v2 - 1) * 100;
+    row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' || row.pct === 0 ? 'neutral' : row.pct < 0 ? 'better' : 'worse';
     (tables[unit] ||= []).push(row);
   }
   return tables;
@@ -390,24 +391,27 @@ function renderTable(rows, metric) {
 }
 
 async function update() {
+  const { run, metric: key } = state;
   try {
-    if (!cache.has(state.run)) {
+    if (!cache.has(run)) {
       $('chart').classList.add('loading');
-      const res = await fetch(`data/${state.run}/benchstat.csv`);
-      if (!res.ok) throw new Error(`data/${state.run}/benchstat.csv: HTTP ${res.status}`);
-      cache.set(state.run, parse(await res.text()));
+      const res = await fetch(`data/${run}/benchstat.csv`);
+      if (!res.ok) throw new Error(`data/${run}/benchstat.csv: HTTP ${res.status}`);
+      cache.set(run, parse(await res.text()));
     }
+    // a newer selection runs its own update, this one is stale
+    if (run !== state.run || key !== state.metric) return;
     $('chart').classList.remove('loading');
-    history.replaceState(null, '', `#run=${state.run}&metric=${state.metric}`);
-    $('run').value = state.run;
-    document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === state.metric)));
-    const metric = metrics[state.metric];
-    const rows = cache.get(state.run)[metric.unit] || [];
-    renderMeta(state.runs.find((r) => r.id === state.run));
+    history.replaceState(null, '', `#run=${run}&metric=${key}`);
+    $('run').value = run;
+    document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === key)));
+    const metric = metrics[key];
+    const rows = cache.get(run)[metric.unit] || [];
+    renderMeta(state.runs.find((r) => r.id === run));
     renderChart(rows, metric);
     renderTable(rows, metric);
   } catch (err) {
-    fail(err);
+    if (run === state.run) fail(err);
   }
 }
 
@@ -424,7 +428,7 @@ async function start() {
   $('run').replaceChildren(...state.runs.map((r) => new Option(`${r.v2} vs ${r.v3} (${r.date.slice(0, 16).replace('T', ' ')} UTC)`, r.id)));
   const params = new URLSearchParams(location.hash.slice(1));
   state.run = state.runs.some((r) => r.id === params.get('run')) ? params.get('run') : state.runs[0].id;
-  state.metric = params.get('metric') in metrics ? params.get('metric') : 'time';
+  state.metric = Object.hasOwn(metrics, params.get('metric')) ? params.get('metric') : 'time';
   await update();
 }
 
