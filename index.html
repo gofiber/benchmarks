@@ -65,10 +65,23 @@ select { max-width: 100%; }
 .seg { display: inline-flex; gap: 4px; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .seg button { border-color: transparent; border-radius: 7px; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+@media (forced-colors: active) {
+  .seg button[aria-pressed="true"] { outline: 2px solid Highlight; }
+}
 .card { margin: 0 0 16px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .card > p { margin-top: 4px; }
+.chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 16px; }
+.tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--page); border: 1px solid var(--border); border-radius: 10px; }
+.tile-title { margin-bottom: 2px; font-weight: 600; }
+.stat { display: flex; align-items: baseline; gap: 8px; }
+.stat-version { width: 18px; color: var(--muted); font-size: 12px; }
+.stat-value { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.stat-unit { color: var(--ink-2); font-size: 12px; font-weight: 400; }
+.tile-time { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.delta { margin-top: 2px; color: var(--ink-2); font-size: 13px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 8px; color: var(--ink-2); }
-.legend span::before {
+.legend span::before, .delta::before, .change::before {
   content: "";
   display: inline-block;
   width: 10px;
@@ -103,10 +116,12 @@ select { max-width: 100%; }
 .bar.right { border-radius: 0 4px 4px 0; }
 /* shape, not just gray, marks noise: red and gray collapse under protanopia */
 .row.neutral .bar { top: 12px; height: 4px; border-radius: 2px; }
-.legend .neutral::before { height: 4px; vertical-align: 2px; }
+.legend .neutral::before, .neutral .delta::before, .change.neutral::before { height: 4px; vertical-align: 2px; }
 .value { padding-right: 4px; text-align: right; font-variant-numeric: tabular-nums; }
 .row.neutral .value { color: var(--muted); }
 .note { margin-top: 12px; color: var(--muted); font-size: 13px; }
+.note.warn { color: var(--ink-2); }
+.note.warn strong { color: var(--ink); }
 .loading { opacity: 0.5; }
 .tip {
   position: fixed;
@@ -121,12 +136,14 @@ select { max-width: 100%; }
   pointer-events: none;
 }
 .tip strong { display: block; font-size: 15px; }
-.table-wrap { margin-top: 8px; overflow-x: auto; }
+.table-wrap { margin-top: 12px; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
 thead th { color: var(--muted); font-weight: 600; }
 tbody th { padding-top: 14px; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+td strong { font-weight: 600; }
+.sub { display: block; color: var(--muted); font-size: 12px; }
 .about ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); }
 footer { color: var(--ink-2); }
 @media (max-width: 560px) {
@@ -144,15 +161,25 @@ footer { color: var(--ink-2); }
 
   <div class="controls">
     <label class="secondary">Snapshot <select id="run"></select></label>
-    <div class="seg" role="group" aria-label="Metric">
-      <button type="button" data-metric="time">Time</button>
-      <button type="button" data-metric="memory">Memory</button>
-      <button type="button" data-metric="allocs">Allocations</button>
-    </div>
   </div>
 
+  <section class="card" aria-labelledby="overview-title">
+    <h2 id="overview-title">Overview</h2>
+    <p class="secondary">Requests per second on one CPU core, measured in-process without network, HTTP parsing or response writing. Higher is better.</p>
+    <div class="tiles" id="tiles"></div>
+    <p class="note" id="noise"></p>
+    <div class="table-wrap"><table id="numbers"></table></div>
+  </section>
+
   <figure class="card" id="chart">
-    <h2 id="title">Time per request</h2>
+    <div class="chart-head">
+      <h2 id="title">Change in time per request</h2>
+      <div class="seg" role="group" aria-label="Metric">
+        <button type="button" data-metric="time">Time</button>
+        <button type="button" data-metric="memory">Memory</button>
+        <button type="button" data-metric="allocs">Allocations</button>
+      </div>
+    </div>
     <p class="secondary" id="caption"></p>
     <p id="error" role="alert"></p>
     <div class="legend" id="legend"></div>
@@ -162,15 +189,15 @@ footer { color: var(--ink-2); }
   </figure>
 
   <section class="card">
-    <h2>Table</h2>
+    <h2>Details</h2>
     <div class="table-wrap"><table id="table"></table></div>
   </section>
 
   <section class="card about">
     <h2>Reading the numbers</h2>
     <ul>
-      <li>Each bar is the change of the v3 median against the v2 median over all runs of a snapshot. Thin gray bars and <span class="muted">~</span> mean benchstat found no significant difference (p &ge; 0.05).</li>
-      <li>Time covers request setup and the handler. App construction, response serialization and the network are not included.</li>
+      <li>Requests per second are one divided by the median time per request on a single CPU core. A real server adds network, HTTP parsing and response writing, so production throughput is lower.</li>
+      <li>Each change compares the v3 median with the v2 median over all runs of a snapshot. Thin gray bars and <span class="muted">~</span> mean benchstat found no significant difference (p &ge; 0.05).</li>
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
       <li><code>fasthttp_floor</code> runs no Fiber code and shows what the fasthttp upgrade alone changes.</li>
     </ul>
@@ -189,18 +216,33 @@ const metrics = {
   allocs: { unit: 'allocs/op', title: 'Allocations per request', less: 'fewer allocations in v3', more: 'more allocations in v3', zero: 'allocate nothing', format: formatCount },
 };
 
+// runs no Fiber code, so it stays out of the headline numbers, counts and noise
+const baseline = ['fasthttp_floor'];
+
 const groups = [
   ['Routing', ['static', 'parameter', 'wildcard', 'static_routes_100', 'static_routes_1000']],
   ['Request data', ['query_lookup', 'header_lookup', 'locals']],
   ['Binding and JSON', ['query_bind', 'json_bind', 'json_bind_1024', 'json_bind_16384', 'json_response', 'json_response_1024', 'json_response_16384']],
   ['Middleware', ['middleware_chain', 'cors_simple', 'cors_preflight', 'recover_no_panic']],
   ['Not found', ['not_found_default', 'not_found_custom']],
-  ['Baseline', ['fasthttp_floor']],
+  ['Baseline', baseline],
 ];
 
+const headlines = [
+  ['static', 'Static route'],
+  ['parameter', 'Route parameter'],
+  ['json_response', 'JSON response'],
+  ['json_bind', 'JSON body binding'],
+];
+
+// a quiet CI run sits around ±5%, a noisy one far above
+const noisyCI = 15;
+
 const $ = (id) => document.getElementById(id);
+const main = document.querySelector('main');
 const cache = new Map();
-const state = { runs: [], run: null, metric: 'time' };
+const state = { runs: [], run: null, metric: 'time', rendered: null };
+const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 3 });
 
 function sig(v) { return Number(v.toPrecision(3)).toLocaleString('en'); }
 function formatTime(s) {
@@ -213,7 +255,7 @@ function formatCount(n) { return sig(n); }
 function formatPct(pct) {
   if (!Number.isFinite(pct)) return 'new';
   const abs = Math.abs(pct);
-  return `${pct < 0 ? '−' : '+'}${abs.toFixed(abs < 10 ? 1 : 0)}%`;
+  return `${pct < 0 ? '−' : '+'}${abs.toFixed(abs < 0.1 ? 2 : abs < 10 ? 1 : 0)}%`;
 }
 function formatTick(v) { return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}%`; }
 function cap(s) { return s[0].toUpperCase() + s.slice(1); }
@@ -222,20 +264,25 @@ function pvalue(p) {
   const m = /p=([\d.]+) n=(\d+)/.exec(p);
   return m ? `p ${m[1]}, n=${m[2]}` : '';
 }
+// the time ratio inverted, so a faster v3 shows as more requests per second
+function rpsChange(r) { return (r.v2 / r.v3 - 1) * 100; }
 
 // benchstat -format csv: one block per unit, each opened by a ",unit,CI,unit,CI,vs base,P" header
 function parse(csv) {
   const tables = {};
   let unit = null;
   for (const line of csv.split('\n')) {
+    if (!line.trim()) { unit = null; continue; }
     const cells = line.split(',');
-    if (cells.length < 7) { unit = null; continue; }
-    if (cells[0] === '') { if (cells[2] === 'CI') unit = cells[1]; continue; }
-    if (!unit || cells[0] === 'geomean') continue;
+    if (cells[0] === '' && cells[2] === 'CI') { unit = cells[1]; continue; }
+    // a benchmark missing in one version comes without the comparison columns
+    if (!unit || cells.length < 7 || cells[0] === '' || cells[0] === 'geomean') continue;
     const [name, v2, ci2, v3, ci3, delta, p] = cells;
     const row = { name: name.replace(/^Request\//, ''), v2: Number(v2), ci2, v3: Number(v3), ci3, delta, p };
-    row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' ? 'neutral' : row.v3 < row.v2 ? 'better' : 'worse';
+    // benchstat prints ? when the v2 median is 0, a new cost has no finite percentage
     row.pct = delta.endsWith('%') ? parseFloat(delta) : row.v2 === 0 ? (row.v3 === 0 ? 0 : Infinity) : (row.v3 / row.v2 - 1) * 100;
+    row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' || row.pct === 0 ? 'neutral' : row.pct < 0 ? 'better' : 'worse';
+    if (row.kind === 'neutral' && !Number.isFinite(row.pct)) row.pct = 0;
     (tables[unit] ||= []).push(row);
   }
   return tables;
@@ -265,8 +312,20 @@ function el(tag, className, text) {
   return node;
 }
 
+function tableRow(tag, cells) {
+  const row = document.createElement('tr');
+  row.append(...cells.map((c) => (typeof c === 'string' ? el(tag, '', c) : c)));
+  return row;
+}
+
+function groupRow(label, span) {
+  const cell = el('th', '', label);
+  cell.colSpan = span;
+  return tableRow('th', [cell]);
+}
+
 function headline(r) {
-  if (r.kind === 'neutral') return `Median ${formatPct(r.pct)}`;
+  if (r.kind === 'neutral') return r.v2 === 0 ? 'None in v2' : `Median ${formatPct(r.pct)}`;
   return Number.isFinite(r.pct) ? formatPct(r.pct) : 'None in v2';
 }
 function verdict(r, metric) {
@@ -333,14 +392,86 @@ function renderMeta(run) {
   }
 }
 
+function medianCI(rows) {
+  const cis = rows.filter((r) => !baseline.includes(r.name))
+    .flatMap((r) => [parseFloat(r.ci2), parseFloat(r.ci3)]).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!cis.length) return null;
+  const mid = cis.length / 2;
+  return Number.isInteger(mid) ? (cis[mid - 1] + cis[mid]) / 2 : cis[Math.floor(mid)];
+}
+
+function stat(version, sec) {
+  const value = el('span', 'stat-value', compact.format(1 / sec));
+  value.append(el('span', 'stat-unit', ' req/s'));
+  const line = el('span', 'stat');
+  line.append(el('span', 'stat-version', version), value);
+  return line;
+}
+
+function rpsCell(sec) {
+  const cell = el('td');
+  cell.append(el('strong', '', `${compact.format(1 / sec)} req/s`), el('span', 'sub', formatTime(sec)));
+  return cell;
+}
+
+function renderOverview(tables) {
+  const time = tables['sec/op'] || [];
+  const byName = new Map(time.map((r) => [r.name, r]));
+  const allocs = new Map((tables['allocs/op'] || []).map((r) => [r.name, r]));
+
+  $('tiles').replaceChildren(...headlines.filter(([name]) => byName.has(name)).map(([name, label]) => {
+    const r = byName.get(name);
+    const tile = el('div', `tile ${r.kind}`);
+    tile.append(
+      el('span', 'tile-title', label),
+      stat('v2', r.v2),
+      stat('v3', r.v3),
+      el('span', 'tile-time', `${formatTime(r.v2)} → ${formatTime(r.v3)} per request`),
+      el('span', 'delta', r.kind === 'neutral' ? 'No significant difference' : `${formatPct(rpsChange(r))} req/s in v3`),
+    );
+    return tile;
+  }));
+
+  const head = document.createElement('thead');
+  head.append(tableRow('th', ['Scenario', 'v2', 'v3', 'Change', 'Allocations']));
+  const body = document.createElement('tbody');
+  for (const [label, list] of grouped(time)) {
+    body.append(groupRow(label, 5));
+    for (const r of list) {
+      const a = allocs.get(r.name);
+      body.append(tableRow('td', [
+        r.name,
+        rpsCell(r.v2),
+        rpsCell(r.v3),
+        el('td', `change ${r.kind}`, r.kind === 'neutral' ? '~' : formatPct(rpsChange(r))),
+        a ? `${formatCount(a.v2)} → ${formatCount(a.v3)}` : '',
+      ]));
+    }
+  }
+  $('numbers').replaceChildren(head, body);
+
+  const noise = $('noise');
+  const median = medianCI(time);
+  noise.className = `note${median >= noisyCI ? ' warn' : ''}`;
+  noise.replaceChildren();
+  if (median === null) return;
+  const shown = Number(median.toFixed(1));
+  if (median >= noisyCI) {
+    noise.append(el('strong', '', 'High timing noise. '),
+      `The median confidence interval of this run is ±${shown}%, so most time differences are not significant. Compare with another snapshot before drawing conclusions.`);
+  } else {
+    noise.append(`Timing noise: median confidence interval ±${shown}%.`);
+  }
+}
+
 function renderChart(rows, metric) {
   const shown = rows.filter((r) => r.kind !== 'zero');
   const d = domain(shown);
   const count = { better: 0, worse: 0, neutral: 0 };
-  shown.forEach((r) => count[r.kind]++);
+  shown.filter((r) => !baseline.includes(r.name)).forEach((r) => count[r.kind]++);
 
-  $('title').textContent = metric.title;
-  $('caption').textContent = `Change of v3 against v2. Left of the center line: ${metric.less}. Right: ${metric.more}.`;
+  $('title').textContent = `Change in ${metric.title.toLowerCase()}`;
+  $('caption').textContent = `Change of v3 against v2. Left of the center line: ${metric.less}. Right: ${metric.more}. Counts leave out the fasthttp baseline.`;
   $('error').textContent = '';
   $('legend').replaceChildren(
     el('span', 'better', `${cap(metric.less)} (${count.better})`),
@@ -357,27 +488,20 @@ function renderChart(rows, metric) {
     el('div', 'group', label),
     ...list.map((r) => rowEl(r, d, metric)),
   ]));
-  const zeros = rows.filter((r) => r.kind === 'zero').map((r) => r.name);
-  $('zero').textContent = zeros.length ? `${zeros.length} scenarios ${metric.zero} in either version: ${zeros.join(', ')}.` : '';
+  const zeros = rows.filter((r) => r.kind === 'zero' && !baseline.includes(r.name)).map((r) => r.name);
+  $('zero').textContent = !rows.length
+    ? 'No data for this metric in this snapshot.'
+    : zeros.length ? `${zeros.length} scenarios ${metric.zero} in either version: ${zeros.join(', ')}.` : '';
 }
 
 function renderTable(rows, metric) {
-  const tr = (tag, cells) => {
-    const row = document.createElement('tr');
-    row.append(...cells.map((c) => el(tag, '', c)));
-    return row;
-  };
   const head = document.createElement('thead');
-  head.append(tr('th', ['Scenario', `v2 (${metric.unit})`, `v3 (${metric.unit})`, 'Change', 'Significance']));
+  head.append(tableRow('th', ['Scenario', `v2 (${metric.unit})`, `v3 (${metric.unit})`, 'Change', 'Significance']));
   const body = document.createElement('tbody');
   for (const [label, list] of grouped(rows)) {
-    const group = el('th', '', label);
-    group.colSpan = 5;
-    const row = document.createElement('tr');
-    row.append(group);
-    body.append(row);
+    body.append(groupRow(label, 5));
     for (const r of list) {
-      body.append(tr('td', [
+      body.append(tableRow('td', [
         r.name,
         `${metric.format(r.v2)}${ci(r.ci2)}`,
         `${metric.format(r.v3)}${ci(r.ci3)}`,
@@ -389,30 +513,49 @@ function renderTable(rows, metric) {
   $('table').replaceChildren(head, body);
 }
 
+// caching the request, not the result, so a click during loading reuses it
+function load(run) {
+  if (!cache.has(run)) {
+    const request = fetch(`data/${run}/benchstat.csv`).then((res) => {
+      if (!res.ok) throw new Error(`data/${run}/benchstat.csv: HTTP ${res.status}`);
+      return res.text();
+    }).then(parse);
+    request.catch(() => cache.delete(run));
+    cache.set(run, request);
+  }
+  return cache.get(run);
+}
+
 async function update() {
+  const { run, metric: key } = state;
+  main.classList.add('loading');
   try {
-    if (!cache.has(state.run)) {
-      $('chart').classList.add('loading');
-      const res = await fetch(`data/${state.run}/benchstat.csv`);
-      if (!res.ok) throw new Error(`data/${state.run}/benchstat.csv: HTTP ${res.status}`);
-      cache.set(state.run, parse(await res.text()));
-    }
-    $('chart').classList.remove('loading');
-    history.replaceState(null, '', `#run=${state.run}&metric=${state.metric}`);
-    $('run').value = state.run;
-    document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === state.metric)));
-    const metric = metrics[state.metric];
-    const rows = cache.get(state.run)[metric.unit] || [];
-    renderMeta(state.runs.find((r) => r.id === state.run));
+    const tables = await load(run);
+    // a newer selection runs its own update, this one is stale
+    if (run !== state.run || key !== state.metric) return;
+    main.classList.remove('loading');
+    history.replaceState(null, '', `#run=${run}&metric=${key}`);
+    $('run').value = run;
+    document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === key)));
+    const metric = metrics[key];
+    const rows = tables[metric.unit] || [];
+    renderMeta(state.runs.find((r) => r.id === run));
+    renderOverview(tables);
     renderChart(rows, metric);
     renderTable(rows, metric);
+    state.rendered = run;
   } catch (err) {
-    fail(err);
+    if (run === state.run) fail(err);
   }
 }
 
 function fail(err) {
-  $('chart').classList.remove('loading');
+  main.classList.remove('loading');
+  // keep the selector in line with the snapshot that is still on screen
+  if (state.rendered) {
+    state.run = state.rendered;
+    $('run').value = state.rendered;
+  }
   $('error').textContent = `Could not load the results (${err.message}).`;
 }
 
@@ -424,7 +567,7 @@ async function start() {
   $('run').replaceChildren(...state.runs.map((r) => new Option(`${r.v2} vs ${r.v3} (${r.date.slice(0, 16).replace('T', ' ')} UTC)`, r.id)));
   const params = new URLSearchParams(location.hash.slice(1));
   state.run = state.runs.some((r) => r.id === params.get('run')) ? params.get('run') : state.runs[0].id;
-  state.metric = params.get('metric') in metrics ? params.get('metric') : 'time';
+  state.metric = Object.hasOwn(metrics, params.get('metric')) ? params.get('metric') : 'time';
   await update();
 }
 
