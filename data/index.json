@@ -4,6 +4,18 @@
     "v3": "v3.5.0",
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
+    "date": "2026-09-14T21:17:18Z",
+    "rounds": 20,
+    "noise": 2.9,
+    "id": "34897010679",
+    "url": "https://github.com/gofiber/benchmarks/actions/runs/34897010679",
+    "sha": "a21466b9cc6cf2318bf26d00c457722e0b66ff29"
+  },
+  {
+    "v2": "v2.52.15",
+    "v3": "v3.5.0",
+    "go": "go1.27.1",
+    "cpu": "AMD EPYC",
     "date": "2026-09-14T19:31:56Z",
     "id": "34886932027",
     "url": "https://github.com/gofiber/benchmarks/actions/runs/34886932027",
