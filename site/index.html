@@ -197,7 +197,8 @@ footer { color: var(--ink-2); }
     <h2>Reading the numbers</h2>
     <ul>
       <li>Requests per second are one divided by the median time per request on a single CPU core. A real server adds network, HTTP parsing and response writing, so production throughput is lower.</li>
-      <li>Each change compares the v3 median with the v2 median over all runs of a snapshot. Thin gray bars and <span class="muted">~</span> mean benchstat found no significant difference (p &ge; 0.05).</li>
+      <li>Each round runs v2 and v3 of a scenario back to back, alternating which goes first. A time change is the median of these paired v3/v2 ratios, so load on the CI host that hits both halves of a pair cancels out. It can differ slightly from the ratio of the two medians.</li>
+      <li>Thin gray bars and <span class="muted">~</span> mean no significant difference: the sign-test interval of a time change includes zero, or benchstat found p &ge; 0.05 for memory, allocations and snapshots from before paired rounds. A run whose median interval is ±5% or wider gets twice the rounds.</li>
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
       <li><code>fasthttp_floor</code> runs no Fiber code and shows what the fasthttp upgrade alone changes.</li>
     </ul>
@@ -235,7 +236,8 @@ const headlines = [
   ['json_bind', 'JSON body binding'],
 ];
 
-// a quiet CI run sits around ±5%, a noisy one far above
+// a quiet CI run sits around ±3% paired and ±5% per version; compare.sh extends a paired run from ±5%
+const noisyPaired = 5;
 const noisyCI = 15;
 
 const $ = (id) => document.getElementById(id);
@@ -260,12 +262,14 @@ function formatPct(pct) {
 function formatTick(v) { return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}%`; }
 function cap(s) { return s[0].toUpperCase() + s.slice(1); }
 function ci(c) { return c && c !== '0%' ? ` ±${c}` : ''; }
-function pvalue(p) {
-  const m = /p=([\d.]+) n=(\d+)/.exec(p);
+function significance(r) {
+  // paired time rows carry the sign-test interval of their change instead of benchstat's p-value
+  if (r.rounds) return r.lo === null ? `n=${r.rounds}` : `${formatPct(r.lo)} to ${formatPct(r.hi)}, n=${r.rounds}`;
+  const m = /p=([\d.]+) n=(\d+)/.exec(r.p);
   return m ? `p ${m[1]}, n=${m[2]}` : '';
 }
-// the time ratio inverted, so a faster v3 shows as more requests per second
-function rpsChange(r) { return (r.v2 / r.v3 - 1) * 100; }
+// the time change inverted, so a faster v3 shows as more requests per second
+function rpsChange(r) { return (100 / (100 + r.pct) - 1) * 100; }
 
 // benchstat -format csv: one block per unit, each opened by a ",unit,CI,unit,CI,vs base,P" header
 function parse(csv) {
@@ -284,6 +288,27 @@ function parse(csv) {
     row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' || row.pct === 0 ? 'neutral' : row.pct < 0 ? 'better' : 'worse';
     if (row.kind === 'neutral' && !Number.isFinite(row.pct)) row.pct = 0;
     (tables[unit] ||= []).push(row);
+  }
+  return tables;
+}
+
+// paired.csv from paired.py: the median of per-round v3/v2 time ratios with its sign-test interval
+function pair(tables, csv) {
+  if (!csv) return tables;
+  // csv.DictWriter ends lines with \r\n
+  const [header, ...lines] = csv.trim().split(/\r?\n/);
+  const keys = header.split(',');
+  const paired = new Map(lines.map((line) => {
+    const row = Object.fromEntries(line.split(',').map((v, i) => [keys[i], v]));
+    return [row.name, row];
+  }));
+  for (const r of tables['sec/op'] || []) {
+    const p = paired.get(r.name);
+    if (!p) continue;
+    r.pct = Number(p.delta);
+    r.rounds = Number(p.rounds);
+    [r.lo, r.hi] = p.lo === '' ? [null, null] : [Number(p.lo), Number(p.hi)];
+    r.kind = p.significant !== 'True' ? 'neutral' : r.pct < 0 ? 'better' : 'worse';
   }
   return tables;
 }
@@ -341,7 +366,7 @@ function showTip(r, metric, x, y) {
     el('div', 'secondary', r.name),
     el('div', '', `v2 ${metric.format(r.v2)}${ci(r.ci2)}`),
     el('div', '', `v3 ${metric.format(r.v3)}${ci(r.ci3)}`),
-    el('div', 'secondary', pvalue(r.p)),
+    el('div', 'secondary', significance(r)),
   );
   tip.hidden = false;
   const pad = 14;
@@ -378,7 +403,8 @@ function rowEl(r, d, metric) {
 
 function renderMeta(run) {
   const meta = $('meta');
-  meta.replaceChildren(`Fiber ${run.v2} vs ${run.v3} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
+  const rounds = run.rounds ? ` · ${run.rounds} paired rounds` : '';
+  meta.replaceChildren(`Fiber ${run.v2} vs ${run.v3}${rounds} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
   const links = [
     ['CI run', run.url],
     [`commit ${(run.sha || '').slice(0, 7)}`, run.sha && `https://github.com/gofiber/benchmarks/commit/${run.sha}`],
@@ -414,7 +440,7 @@ function rpsCell(sec) {
   return cell;
 }
 
-function renderOverview(tables) {
+function renderOverview(tables, run) {
   const time = tables['sec/op'] || [];
   const byName = new Map(time.map((r) => [r.name, r]));
   const allocs = new Map((tables['allocs/op'] || []).map((r) => [r.name, r]));
@@ -451,14 +477,16 @@ function renderOverview(tables) {
   $('numbers').replaceChildren(head, body);
 
   const noise = $('noise');
-  const median = medianCI(time);
-  noise.className = `note${median >= noisyCI ? ' warn' : ''}`;
+  // paired snapshots publish their noise figure, older ones only have benchstat's intervals per version
+  const median = run.rounds ? run.noise : medianCI(time);
+  const noisy = median >= (run.rounds ? noisyPaired : noisyCI);
+  noise.className = `note${noisy ? ' warn' : ''}`;
   noise.replaceChildren();
   if (median === null) return;
   const shown = Number(median.toFixed(1));
-  if (median >= noisyCI) {
+  if (noisy) {
     noise.append(el('strong', '', 'High timing noise. '),
-      `The median confidence interval of this run is ±${shown}%, so most time differences are not significant. Compare with another snapshot before drawing conclusions.`);
+      `The median confidence interval of this run is ±${shown}%, so small time differences are not significant. Compare with another snapshot before drawing conclusions.`);
   } else {
     noise.append(`Timing noise: median confidence interval ±${shown}%.`);
   }
@@ -506,31 +534,40 @@ function renderTable(rows, metric) {
         `${metric.format(r.v2)}${ci(r.ci2)}`,
         `${metric.format(r.v3)}${ci(r.ci3)}`,
         r.kind === 'better' || r.kind === 'worse' ? formatPct(r.pct) : '~',
-        pvalue(r.p),
+        significance(r),
       ]));
     }
   }
   $('table').replaceChildren(head, body);
 }
 
+function fetchText(path) {
+  return fetch(path).then((res) => {
+    if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+    return res.text();
+  });
+}
+
 // caching the request, not the result, so a click during loading reuses it
 function load(run) {
-  if (!cache.has(run)) {
-    const request = fetch(`data/${run}/benchstat.csv`).then((res) => {
-      if (!res.ok) throw new Error(`data/${run}/benchstat.csv: HTTP ${res.status}`);
-      return res.text();
-    }).then(parse);
-    request.catch(() => cache.delete(run));
-    cache.set(run, request);
+  if (!cache.has(run.id)) {
+    // snapshots from before the paired rounds have no paired.csv
+    const request = Promise.all([
+      fetchText(`data/${run.id}/benchstat.csv`),
+      run.rounds ? fetchText(`data/${run.id}/paired.csv`) : null,
+    ]).then(([benchstat, paired]) => pair(parse(benchstat), paired));
+    request.catch(() => cache.delete(run.id));
+    cache.set(run.id, request);
   }
-  return cache.get(run);
+  return cache.get(run.id);
 }
 
 async function update() {
   const { run, metric: key } = state;
+  const entry = state.runs.find((r) => r.id === run);
   main.classList.add('loading');
   try {
-    const tables = await load(run);
+    const tables = await load(entry);
     // a newer selection runs its own update, this one is stale
     if (run !== state.run || key !== state.metric) return;
     main.classList.remove('loading');
@@ -539,8 +576,8 @@ async function update() {
     document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === key)));
     const metric = metrics[key];
     const rows = tables[metric.unit] || [];
-    renderMeta(state.runs.find((r) => r.id === run));
-    renderOverview(tables);
+    renderMeta(entry);
+    renderOverview(tables, entry);
     renderChart(rows, metric);
     renderTable(rows, metric);
     state.rendered = run;
