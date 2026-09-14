@@ -12,7 +12,8 @@ In-process request benchmarks for Fiber v2 and v3. Each scenario is written agai
 | `v2/`, `v3/` | One Go module per major version, the Fiber pin in `go.mod` is bumped by Dependabot |
 | `*/harness_test.go` | Timing and response checks, identical in both modules |
 | `*/scenarios_test.go` | The scenarios in each version's API |
-| `compare.sh` | Interleaved runs and the `benchstat` comparison |
+| `compare.sh` | Paired runs of both versions and the `benchstat` comparison |
+| `paired.py` | Median v3/v2 time ratio per scenario with a sign-test interval |
 | `site/` | The results page and the script that publishes a run to it |
 
 ## Running
@@ -22,11 +23,14 @@ make compare                        # COUNT=10 BENCHTIME=500ms
 COUNT=20 BENCHTIME=1s make compare
 ```
 
-CI runs the comparison on every push and pull request. The benchstat table is in the job summary, the raw results are attached as an artifact.
+It needs Go and python3. A run whose median paired interval is ±5% or wider after `COUNT` rounds gets `COUNT` more.
+
+CI runs the comparison on every push and pull request. The paired and benchstat tables are in the job summary, the raw results are attached as an artifact.
 
 ## Reading the results
 
 - `sec/op` covers request setup and the handler. App construction, serialization and the network are not included, so it is not end-to-end latency.
+- Each round runs v2 and v3 of a scenario back to back, alternating which goes first. `paired.py` reports the median of these per-round v3/v2 ratios with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
 - Every scenario checks status, body and required headers before and after timing.
 - `fasthttp_floor` runs no Fiber code and shows what the fasthttp version alone changes.
 - `not_found_default` uses each version's default body, `not_found_custom` the same custom body in both.

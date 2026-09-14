@@ -34,6 +34,9 @@ jobs:
           go-version: stable
           cache-dependency-path: "*/go.sum"
 
+      - name: Test the paired comparison
+        run: python3 -m unittest test_paired
+
       - name: Compare v2 and v3
         run: ./compare.sh
 
@@ -43,6 +46,8 @@ jobs:
             echo '```text'
             go version
             cat results/benchstat.txt
+            echo
+            cat results/paired.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -53,6 +58,7 @@ jobs:
           path: |
             results/*.txt
             results/benchstat.csv
+            results/paired.csv
             results/meta.json
 
   publish:
