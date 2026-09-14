@@ -1,0 +1,24 @@
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directories:
+      - "/v2"
+      - "/v3"
+    labels:
+      - "🤖 Dependencies"
+    schedule:
+      interval: "daily"
+    # only the Fiber pin moves, everything else stays as that release resolves it
+    allow:
+      - dependency-name: "github.com/gofiber/fiber/*"
+    cooldown:
+      exclude:
+        - "github.com/gofiber/*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "🤖 Dependencies"

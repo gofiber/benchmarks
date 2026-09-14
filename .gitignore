@@ -1,0 +1,7 @@
+# Binaries
+*.test
+
+# compare.sh output
+results/
+
+.idea
