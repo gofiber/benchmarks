@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiber v2 vs v3 benchmarks</title>
+<meta name="description" content="Request benchmarks comparing Fiber v2 and v3, measured side by side in CI.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --better: #2a78d6;
+  --worse: #e34948;
+  --neutral: #898781;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --better: #3987e5;
+    --worse: #e66767;
+    --neutral: #c3c2b7;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 16px 48px;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 880px; margin: 0 auto; }
+a { color: inherit; text-underline-offset: 2px; }
+h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+h2 { margin: 0; font-size: 16px; }
+p { margin: 0; }
+code { font-size: 13px; }
+.secondary { color: var(--ink-2); }
+.muted { color: var(--muted); }
+header p { margin-top: 6px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0 16px; }
+select, .seg button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+select { max-width: 100%; }
+.seg { display: inline-flex; gap: 4px; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.seg button { border-color: transparent; border-radius: 7px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.card { margin: 0 0 16px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.card > p { margin-top: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 8px; color: var(--ink-2); }
+.legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+.line { display: grid; grid-template-columns: minmax(96px, 180px) 1fr 64px; gap: 12px; align-items: center; }
+.axis { height: 20px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tick { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.tick:first-child { transform: none; }
+.tick:last-child { transform: translateX(-100%); }
+.group { margin: 14px 0 2px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.row { border-radius: 6px; outline: none; }
+.row:hover, .row:focus-visible { background: var(--page); }
+.row:focus-visible { box-shadow: inset 0 0 0 2px var(--better); }
+.name { padding-left: 4px; overflow-wrap: anywhere; }
+.track { position: relative; height: 28px; }
+.row .track {
+  background:
+    linear-gradient(var(--baseline), var(--baseline)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--grid), var(--grid)) 25% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--grid), var(--grid)) 75% 0 / 1px 100% no-repeat;
+}
+.axis .track { height: 100%; }
+.better { --swatch: var(--better); }
+.worse { --swatch: var(--worse); }
+.neutral { --swatch: var(--neutral); }
+.bar { position: absolute; top: 6px; height: 16px; min-width: 2px; background: var(--swatch); }
+.bar.left { border-radius: 4px 0 0 4px; }
+.bar.right { border-radius: 0 4px 4px 0; }
+/* shape, not just gray, marks noise: red and gray collapse under protanopia */
+.row.neutral .bar { top: 12px; height: 4px; border-radius: 2px; }
+.legend .neutral::before { height: 4px; vertical-align: 2px; }
+.value { padding-right: 4px; text-align: right; font-variant-numeric: tabular-nums; }
+.row.neutral .value { color: var(--muted); }
+.note { margin-top: 12px; color: var(--muted); font-size: 13px; }
+.loading { opacity: 0.5; }
+.tip {
+  position: fixed;
+  z-index: 1;
+  max-width: 300px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  pointer-events: none;
+}
+.tip strong { display: block; font-size: 15px; }
+.table-wrap { margin-top: 8px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { color: var(--muted); font-weight: 600; }
+tbody th { padding-top: 14px; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+.about ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); }
+footer { color: var(--ink-2); }
+@media (max-width: 560px) {
+  .line { grid-template-columns: minmax(72px, 110px) 1fr 52px; gap: 8px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Fiber v2 vs v3 benchmarks</h1>
+    <p class="secondary">In-process request benchmarks. Both versions run interleaved on the same CI machine, each with its own API and dependencies.</p>
+    <p class="muted" id="meta"></p>
+  </header>
+
+  <div class="controls">
+    <label class="secondary">Snapshot <select id="run"></select></label>
+    <div class="seg" role="group" aria-label="Metric">
+      <button type="button" data-metric="time">Time</button>
+      <button type="button" data-metric="memory">Memory</button>
+      <button type="button" data-metric="allocs">Allocations</button>
+    </div>
+  </div>
+
+  <figure class="card" id="chart">
+    <h2 id="title">Time per request</h2>
+    <p class="secondary" id="caption"></p>
+    <p id="error" role="alert"></p>
+    <div class="legend" id="legend"></div>
+    <div class="line axis" aria-hidden="true"><span></span><span class="track" id="ticks"></span><span></span></div>
+    <div id="rows" role="list"></div>
+    <p class="note" id="zero"></p>
+  </figure>
+
+  <section class="card">
+    <h2>Table</h2>
+    <div class="table-wrap"><table id="table"></table></div>
+  </section>
+
+  <section class="card about">
+    <h2>Reading the numbers</h2>
+    <ul>
+      <li>Each bar is the change of the v3 median against the v2 median over all runs of a snapshot. Thin gray bars and <span class="muted">~</span> mean benchstat found no significant difference (p &ge; 0.05).</li>
+      <li>Time covers request setup and the handler. App construction, response serialization and the network are not included.</li>
+      <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
+      <li><code>fasthttp_floor</code> runs no Fiber code and shows what the fasthttp upgrade alone changes.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Scenarios, methodology and how to run it locally: <a href="https://github.com/gofiber/benchmarks">gofiber/benchmarks</a></p>
+  </footer>
+</main>
+<div class="tip" id="tip" hidden></div>
+<noscript><p>This page needs JavaScript. The raw results are listed in <a href="data/index.json">data/index.json</a>.</p></noscript>
+<script>
+const metrics = {
+  time: { unit: 'sec/op', title: 'Time per request', less: 'faster in v3', more: 'slower in v3', zero: '', format: formatTime },
+  memory: { unit: 'B/op', title: 'Memory per request', less: 'less memory in v3', more: 'more memory in v3', zero: 'use no heap memory', format: formatBytes },
+  allocs: { unit: 'allocs/op', title: 'Allocations per request', less: 'fewer allocations in v3', more: 'more allocations in v3', zero: 'allocate nothing', format: formatCount },
+};
+
+const groups = [
+  ['Routing', ['static', 'parameter', 'wildcard', 'static_routes_100', 'static_routes_1000']],
+  ['Request data', ['query_lookup', 'header_lookup', 'locals']],
+  ['Binding and JSON', ['query_bind', 'json_bind', 'json_bind_1024', 'json_bind_16384', 'json_response', 'json_response_1024', 'json_response_16384']],
+  ['Middleware', ['middleware_chain', 'cors_simple', 'cors_preflight', 'recover_no_panic']],
+  ['Not found', ['not_found_default', 'not_found_custom']],
+  ['Baseline', ['fasthttp_floor']],
+];
+
+const $ = (id) => document.getElementById(id);
+const cache = new Map();
+const state = { runs: [], run: null, metric: 'time' };
+
+function sig(v) { return Number(v.toPrecision(3)).toLocaleString('en'); }
+function formatTime(s) {
+  if (s < 1e-6) return `${sig(s * 1e9)} ns`;
+  if (s < 1e-3) return `${sig(s * 1e6)} µs`;
+  return `${sig(s * 1e3)} ms`;
+}
+function formatBytes(b) { return b < 1024 ? `${sig(b)} B` : `${sig(b / 1024)} KiB`; }
+function formatCount(n) { return sig(n); }
+function formatPct(pct) {
+  if (!Number.isFinite(pct)) return 'new';
+  const abs = Math.abs(pct);
+  return `${pct < 0 ? '−' : '+'}${abs.toFixed(abs < 10 ? 1 : 0)}%`;
+}
+function formatTick(v) { return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}%`; }
+function cap(s) { return s[0].toUpperCase() + s.slice(1); }
+function ci(c) { return c && c !== '0%' ? ` ±${c}` : ''; }
+function pvalue(p) {
+  const m = /p=([\d.]+) n=(\d+)/.exec(p);
+  return m ? `p ${m[1]}, n=${m[2]}` : '';
+}
+
+// benchstat -format csv: one block per unit, each opened by a ",unit,CI,unit,CI,vs base,P" header
+function parse(csv) {
+  const tables = {};
+  let unit = null;
+  for (const line of csv.split('\n')) {
+    const cells = line.split(',');
+    if (cells.length < 7) { unit = null; continue; }
+    if (cells[0] === '') { if (cells[2] === 'CI') unit = cells[1]; continue; }
+    if (!unit || cells[0] === 'geomean') continue;
+    const [name, v2, ci2, v3, ci3, delta, p] = cells;
+    const row = { name: name.replace(/^Request\//, ''), v2: Number(v2), ci2, v3: Number(v3), ci3, delta, p };
+    row.kind = row.v2 === 0 && row.v3 === 0 ? 'zero' : delta === '~' ? 'neutral' : row.v3 < row.v2 ? 'better' : 'worse';
+    row.pct = delta.endsWith('%') ? parseFloat(delta) : row.v2 === 0 ? (row.v3 === 0 ? 0 : Infinity) : (row.v3 / row.v2 - 1) * 100;
+    (tables[unit] ||= []).push(row);
+  }
+  return tables;
+}
+
+function grouped(rows) {
+  const byName = new Map(rows.map((r) => [r.name, r]));
+  const out = [];
+  for (const [label, names] of groups) {
+    const list = names.filter((n) => byName.has(n)).map((n) => byName.get(n));
+    names.forEach((n) => byName.delete(n));
+    if (list.length) out.push([label, list]);
+  }
+  if (byName.size) out.push(['Other', [...byName.values()]]);
+  return out;
+}
+
+function domain(rows) {
+  const max = Math.max(0, ...rows.map((r) => Math.abs(r.pct)).filter(Number.isFinite));
+  return [10, 20, 40, 60, 80, 100, 150, 200, 300, 400, 600, 800, 1000].find((s) => max <= s) || Math.ceil(max / 1000) * 1000;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function headline(r) {
+  if (r.kind === 'neutral') return `Median ${formatPct(r.pct)}`;
+  return Number.isFinite(r.pct) ? formatPct(r.pct) : 'None in v2';
+}
+function verdict(r, metric) {
+  if (r.kind === 'neutral') return 'No significant difference';
+  return cap(r.kind === 'better' ? metric.less : metric.more);
+}
+
+function showTip(r, metric, x, y) {
+  const tip = $('tip');
+  tip.replaceChildren(
+    el('strong', '', headline(r)),
+    el('div', '', verdict(r, metric)),
+    el('div', 'secondary', r.name),
+    el('div', '', `v2 ${metric.format(r.v2)}${ci(r.ci2)}`),
+    el('div', '', `v3 ${metric.format(r.v3)}${ci(r.ci3)}`),
+    el('div', 'secondary', pvalue(r.p)),
+  );
+  tip.hidden = false;
+  const pad = 14;
+  tip.style.left = `${Math.max(8, Math.min(x + pad, innerWidth - tip.offsetWidth - 8))}px`;
+  tip.style.top = `${y + pad + tip.offsetHeight > innerHeight ? y - tip.offsetHeight - pad : y + pad}px`;
+}
+function hideTip() { $('tip').hidden = true; }
+
+function barEl(pct, d) {
+  const w = Number.isFinite(pct) ? Math.min(Math.abs(pct) / d, 1) * 50 : 50;
+  const bar = el('span', `bar ${pct < 0 ? 'left' : 'right'}`);
+  bar.style.left = pct < 0 ? `${50 - w}%` : '50%';
+  bar.style.width = `${w}%`;
+  return bar;
+}
+
+function rowEl(r, d, metric) {
+  const row = el('div', `line row ${r.kind}`);
+  row.tabIndex = 0;
+  row.setAttribute('role', 'listitem');
+  row.setAttribute('aria-label', `${r.name}: ${headline(r)}, ${verdict(r, metric)}`);
+  const track = el('span', 'track');
+  track.append(barEl(r.pct, d));
+  row.append(el('span', 'name', r.name), track, el('span', 'value', r.kind === 'neutral' ? '~' : formatPct(r.pct)));
+  row.addEventListener('pointermove', (e) => showTip(r, metric, e.clientX, e.clientY));
+  row.addEventListener('pointerleave', hideTip);
+  row.addEventListener('focus', () => {
+    const box = row.getBoundingClientRect();
+    showTip(r, metric, box.left + box.width / 2, box.bottom);
+  });
+  row.addEventListener('blur', hideTip);
+  return row;
+}
+
+function renderMeta(run) {
+  const meta = $('meta');
+  meta.replaceChildren(`Fiber ${run.v2} vs ${run.v3} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
+  const links = [
+    ['CI run', run.url],
+    [`commit ${(run.sha || '').slice(0, 7)}`, run.sha && `https://github.com/gofiber/benchmarks/commit/${run.sha}`],
+    ['benchstat output', `data/${run.id}/benchstat.txt`],
+  ];
+  for (const [text, href] of links) {
+    if (!href) continue;
+    const a = el('a', '', text);
+    a.href = href;
+    meta.append(' · ', a);
+  }
+}
+
+function renderChart(rows, metric) {
+  const shown = rows.filter((r) => r.kind !== 'zero');
+  const d = domain(shown);
+  const count = { better: 0, worse: 0, neutral: 0 };
+  shown.forEach((r) => count[r.kind]++);
+
+  $('title').textContent = metric.title;
+  $('caption').textContent = `Change of v3 against v2. Left of the center line: ${metric.less}. Right: ${metric.more}.`;
+  $('error').textContent = '';
+  $('legend').replaceChildren(
+    el('span', 'better', `${cap(metric.less)} (${count.better})`),
+    el('span', 'worse', `${cap(metric.more)} (${count.worse})`),
+    el('span', 'neutral', `No significant difference (${count.neutral})`),
+  );
+  $('ticks').replaceChildren(...[-d, -d / 2, 0, d / 2, d].map((v, i) => {
+    const tick = el('span', 'tick', formatTick(v));
+    tick.style.left = `${i * 25}%`;
+    return tick;
+  }));
+  $('rows').setAttribute('aria-label', metric.title);
+  $('rows').replaceChildren(...grouped(shown).flatMap(([label, list]) => [
+    el('div', 'group', label),
+    ...list.map((r) => rowEl(r, d, metric)),
+  ]));
+  const zeros = rows.filter((r) => r.kind === 'zero').map((r) => r.name);
+  $('zero').textContent = zeros.length ? `${zeros.length} scenarios ${metric.zero} in either version: ${zeros.join(', ')}.` : '';
+}
+
+function renderTable(rows, metric) {
+  const tr = (tag, cells) => {
+    const row = document.createElement('tr');
+    row.append(...cells.map((c) => el(tag, '', c)));
+    return row;
+  };
+  const head = document.createElement('thead');
+  head.append(tr('th', ['Scenario', `v2 (${metric.unit})`, `v3 (${metric.unit})`, 'Change', 'Significance']));
+  const body = document.createElement('tbody');
+  for (const [label, list] of grouped(rows)) {
+    const group = el('th', '', label);
+    group.colSpan = 5;
+    const row = document.createElement('tr');
+    row.append(group);
+    body.append(row);
+    for (const r of list) {
+      body.append(tr('td', [
+        r.name,
+        `${metric.format(r.v2)}${ci(r.ci2)}`,
+        `${metric.format(r.v3)}${ci(r.ci3)}`,
+        r.kind === 'better' || r.kind === 'worse' ? formatPct(r.pct) : '~',
+        pvalue(r.p),
+      ]));
+    }
+  }
+  $('table').replaceChildren(head, body);
+}
+
+async function update() {
+  try {
+    if (!cache.has(state.run)) {
+      $('chart').classList.add('loading');
+      const res = await fetch(`data/${state.run}/benchstat.csv`);
+      if (!res.ok) throw new Error(`data/${state.run}/benchstat.csv: HTTP ${res.status}`);
+      cache.set(state.run, parse(await res.text()));
+    }
+    $('chart').classList.remove('loading');
+    history.replaceState(null, '', `#run=${state.run}&metric=${state.metric}`);
+    $('run').value = state.run;
+    document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === state.metric)));
+    const metric = metrics[state.metric];
+    const rows = cache.get(state.run)[metric.unit] || [];
+    renderMeta(state.runs.find((r) => r.id === state.run));
+    renderChart(rows, metric);
+    renderTable(rows, metric);
+  } catch (err) {
+    fail(err);
+  }
+}
+
+function fail(err) {
+  $('chart').classList.remove('loading');
+  $('error').textContent = `Could not load the results (${err.message}).`;
+}
+
+async function start() {
+  const res = await fetch('data/index.json');
+  if (!res.ok) throw new Error(`data/index.json: HTTP ${res.status}`);
+  state.runs = await res.json();
+  if (!state.runs.length) throw new Error('nothing published yet');
+  $('run').replaceChildren(...state.runs.map((r) => new Option(`${r.v2} vs ${r.v3} (${r.date.slice(0, 16).replace('T', ' ')} UTC)`, r.id)));
+  const params = new URLSearchParams(location.hash.slice(1));
+  state.run = state.runs.some((r) => r.id === params.get('run')) ? params.get('run') : state.runs[0].id;
+  state.metric = params.get('metric') in metrics ? params.get('metric') : 'time';
+  await update();
+}
+
+$('run').addEventListener('change', (e) => { state.run = e.target.value; update(); });
+document.querySelectorAll('[data-metric]').forEach((b) => b.addEventListener('click', () => { state.metric = b.dataset.metric; update(); }));
+addEventListener('scroll', hideTip, { passive: true });
+start().catch(fail);
+</script>
+</body>
+</html>

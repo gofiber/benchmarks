@@ -1,0 +1,12 @@
+[
+  {
+    "v2": "v2.52.15",
+    "v3": "v3.5.0",
+    "go": "go1.27.1",
+    "cpu": "AMD EPYC",
+    "date": "2026-09-14T18:26:10Z",
+    "id": "34880229648",
+    "url": "https://github.com/gofiber/benchmarks/actions/runs/34880229648",
+    "sha": "4d066c8edd84d4ee2d33e3eb9d817c29c2637637"
+  }
+]
