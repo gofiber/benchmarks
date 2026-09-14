@@ -2,12 +2,15 @@
 
 In-process request benchmarks for Fiber v2 and v3. Each scenario is written against the version's own API, and each version builds with the dependencies it ships with.
 
+**Results:** https://gofiber.github.io/benchmarks/
+
 | Path | Content |
 | --- | --- |
 | `v2/`, `v3/` | One Go module per major version, the Fiber pin in `go.mod` is bumped by Dependabot |
 | `*/harness_test.go` | Timing and response checks, identical in both modules |
 | `*/scenarios_test.go` | The scenarios in each version's API |
 | `compare.sh` | Interleaved runs and the `benchstat` comparison |
+| `site/` | The results page and the script that publishes a run to it |
 
 ## Running
 
