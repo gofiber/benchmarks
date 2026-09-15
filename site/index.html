@@ -169,7 +169,7 @@ footer { color: var(--ink-2); }
 
   <section class="card" aria-labelledby="overview-title">
     <h2 id="overview-title">Overview</h2>
-    <p class="secondary">Requests per second on one CPU core, measured in-process with HTTP parsing but without network or response writing. Higher is better.</p>
+    <p class="secondary">Requests per second on one CPU core, measured in-process with HTTP parsing but without serializing the response or the network. Higher is better.</p>
     <div class="tiles" id="tiles"></div>
     <p class="note" id="noise"></p>
     <div class="table-wrap"><table id="numbers"></table></div>
@@ -200,7 +200,7 @@ footer { color: var(--ink-2); }
   <section class="card about">
     <h2>Reading the numbers</h2>
     <ul>
-      <li>Requests per second are one divided by the median time per request on a single CPU core, from parsing the request to the end of the handler. A real server adds the network and response writing, so production throughput is lower.</li>
+      <li>Requests per second are one divided by the median time per request on a single CPU core, from parsing the request to the end of the handler. A real server also serializes the response and sends it over the network, so production throughput is lower.</li>
       <li>Each round runs every version of a scenario back to back, rotating which goes first. A time change is the median of the per-round ratios against v2, so load on the CI host that hits both halves of a pair cancels out. It can differ slightly from the ratio of the two medians.</li>
       <li>Thin gray bars and <span class="muted">~</span> mean no significant difference: the sign-test interval of a time change includes zero, or benchstat found p &ge; 0.05 for memory, allocations and snapshots from before paired rounds. A run whose median interval is ±5% or wider gets twice the rounds.</li>
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
