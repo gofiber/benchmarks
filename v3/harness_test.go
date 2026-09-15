@@ -2,9 +2,11 @@ package benchmarks
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,14 +27,23 @@ func BenchmarkRequest(b *testing.B) {
 	for i := range list {
 		s := &list[i]
 		b.Run(s.name, func(b *testing.B) {
-			var c fasthttp.RequestCtx
-			prepare(&c, s)
+			var (
+				c   fasthttp.RequestCtx
+				src bytes.Reader
+			)
+			br := bufio.NewReader(&src)
+			raw := rawRequest(s)
+			if err := prepare(&c, br, &src, raw); err != nil {
+				b.Fatal(err)
+			}
 			s.handler(&c)
 			verify(b, &c, s)
 
 			b.ReportAllocs()
 			for b.Loop() {
-				prepare(&c, s)
+				if err := prepare(&c, br, &src, raw); err != nil {
+					b.Fatal(err)
+				}
 				s.handler(&c)
 			}
 			verify(b, &c, s)
@@ -40,18 +51,25 @@ func BenchmarkRequest(b *testing.B) {
 	}
 }
 
-func prepare(c *fasthttp.RequestCtx, s *scenario) {
+func rawRequest(s *scenario) []byte {
+	lines := []string{s.method + " " + s.uri + " HTTP/1.1", "Host: bench.invalid"}
+	for _, h := range s.headers {
+		lines = append(lines, h.name+": "+h.value)
+	}
+	if s.body != "" {
+		lines = append(lines, "Content-Length: "+strconv.Itoa(len(s.body)))
+	}
+	return []byte(strings.Join(lines, "\r\n") + "\r\n\r\n" + s.body)
+}
+
+// parsing like a server keeps setter-only costs, such as fasthttp's CRLF sanitizing, out of the timing
+func prepare(c *fasthttp.RequestCtx, br *bufio.Reader, src *bytes.Reader, raw []byte) error {
 	c.Request.Reset()
 	c.Response.Reset()
 	c.ResetUserValues()
-	c.Request.Header.SetMethod(s.method)
-	c.Request.SetRequestURI(s.uri)
-	for _, h := range s.headers {
-		c.Request.Header.Set(h.name, h.value)
-	}
-	if s.body != "" {
-		c.Request.SetBodyString(s.body)
-	}
+	src.Reset(raw)
+	br.Reset(src)
+	return c.Request.Read(br)
 }
 
 // verify reads the serialized response, so a body buffer fasthttp never sends (e.g. on 204) doesn't count.

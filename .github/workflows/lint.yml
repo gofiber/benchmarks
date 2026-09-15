@@ -27,3 +27,5 @@ permissions:
 jobs:
   lint:
     uses: gofiber/.github/.github/workflows/go-lint-multi.yml@main
+    with:
+      golangci-lint-version: "v2.13.2"
