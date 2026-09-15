@@ -1,65 +1,60 @@
 #!/usr/bin/env bash
-# Profiles v2, v3.5.0 and main, checks the v3.5.0 routing gap against main and bisects the commit that removed it.
+# Is the v3.5.0 gap code or layout? Swaps fasthttp, relinks with other function layouts and scans main's first-parent history.
 # shellcheck disable=SC2016 # the backticks are markdown fences for the job summary
 set -euo pipefail
 export REPO=$PWD DIAG=$PWD/diag WORK=${RUNNER_TEMP:-/tmp}/diag ROUNDS=${ROUNDS:-10} LC_ALL=C
-: "${MAIN:?MAIN must name the fast Fiber commit}"
+: "${MAIN:?MAIN must name the fast Fiber commit}" "${PLATEAU:?PLATEAU must name the first commit to scan}"
 # shellcheck source=diag/lib.sh
 source "$DIAG/lib.sh"
 summary=${GITHUB_STEP_SUMMARY:-/dev/null}
-fenced() { printf '```text\n%s\n```\n' "$1" >>"$summary"; }
+
+# compare TITLE REF NAME...: measure the binaries and report their Fiber part against REF
+compare() {
+  local title=$1 slug=${1// /-} out
+  shift
+  mapfile -t paths < <(bins "$@")
+  measure "${paths[@]}" >"$WORK/raw-$slug.txt"
+  out=$(python3 "$DIAG/table.py" "$WORK/raw-$slug.txt" "$@")
+  printf '== %s\n%s\n' "$title" "$out"
+  printf '%s\n' "$out" >"$WORK/table-$slug.txt"
+  printf '### %s\n```text\n%s\n```\n' "$title" "$out" >>"$summary"
+}
 
 rm -rf "$WORK"
 mkdir -p "$WORK/bin"
 git clone --quiet --filter=blob:none "${FIBER_URL:-https://github.com/gofiber/fiber}" "$WORK/fiber"
 git -C "$WORK/fiber" worktree add --quiet "$WORK/fiber-v350" v3.5.0
 git -C "$WORK/fiber" worktree add --quiet "$WORK/fiber-main" "$MAIN"
-(cd "$REPO/v2" && go test -c -o "$WORK/bin/v2.test" .)
-build v350 "$WORK/fiber-v350"
-build main "$WORK/fiber-main"
 go version
 
-echo "== endpoints"
-measure "$WORK/bin/v2.test" "$WORK/bin/v350.test" "$WORK/bin/main.test" >"$WORK/raw-endpoints.txt"
-reproduced=0
-endpoints=$(python3 "$DIAG/gap.py" "$WORK/raw-endpoints.txt" v350 main "${MIN_GAP:-30}" endpoints) || reproduced=$?
-echo "$endpoints"
-fenced "$endpoints"
-
-# where each version spends a routed request and the bare fasthttp parse
-for bench in static fasthttp_floor; do
-  for name in v2 v350 main; do
-    echo "== profile $name $bench"
-    "$WORK/bin/$name.test" -test.run '^$' -test.bench "^BenchmarkRequest\$/^$bench\$" -test.benchtime "${PROFILE_TIME:-10s}" -test.cpu 1 \
-      -test.cpuprofile "$WORK/$name-$bench.prof" >/dev/null
-    go tool pprof -top -nodecount 35 "$WORK/bin/$name.test" "$WORK/$name-$bench.prof" | tee "$WORK/top-$name-$bench.txt"
-  done
+module main "$WORK/fiber-main"
+module v350 "$WORK/fiber-v350"
+module v350-fh174 "$WORK/fiber-v350" v1.74.0
+module main-fh173 "$WORK/fiber-main" v1.73.0
+for m in main v350 v350-fh174 main-fh173; do binary "$m" "$WORK/mod-$m"; done
+binary v2 "$REPO/v2"
+for seed in 1 2 3; do
+  binary "main-r$seed" "$WORK/mod-main" "-randlayout=$seed"
+  binary "v350-r$seed" "$WORK/mod-v350" "-randlayout=$seed"
+  binary "v2-r$seed" "$REPO/v2" "-randlayout=$seed"
 done
-echo "== static, v350 minus main"
-go tool pprof -top -nodecount 25 -diff_base "$WORK/main-static.prof" "$WORK/bin/v350.test" "$WORK/v350-static.prof" | tee "$WORK/top-v350-minus-main.txt"
-fenced "$(cat "$WORK/top-v350-minus-main.txt")"
+binary main-a32 "$WORK/mod-main" "-funcalign=32"
+binary v350-a32 "$WORK/mod-v350" "-funcalign=32"
+binary v2-a32 "$REPO/v2" "-funcalign=32"
 
-if ((reproduced != 0)); then
-  echo "the gap does not reproduce here, nothing to bisect"
-  exit 1
-fi
-gap=$(sed -n 's/.*gap \([+-][0-9.]*\) ns.*/\1/p' <<<"$endpoints")
-THRESHOLD=$(awk -v g="$gap" 'BEGIN {print g / 2}')
-export THRESHOLD
+compare "fasthttp swap" main v350 v350-fh174 main-fh173
+compare "function layout" main main-r1 main-r2 main-r3 main-a32 v350 v350-r1 v350-r2 v350-r3 v350-a32 v2 v2-r1 v2-r2 v2-r3 v2-a32
 
-echo "== bisect with a threshold of $THRESHOLD ns"
-cd "$WORK/fiber"
-git bisect start --first-parent --term-old=slow --term-new=fast "$MAIN" v3.5.0
-git bisect run "$DIAG/step.sh" | tee "$WORK/bisect.txt"
-first=$(git rev-parse refs/bisect/fast)
-{
-  git show --no-patch --format='first fast commit: %h %s (%an, %ad)' "$first"
-  if git rev-parse -q --verify "$first^2" >/dev/null; then
-    echo "commits it merged:"
-    git log --oneline "$first^1..$first^2"
+# every first-parent commit from the plateau to main, each with the dependencies it requires
+scan=()
+for c in $(git -C "$WORK/fiber" rev-list --reverse --first-parent "$PLATEAU^1..$MAIN"); do
+  name=c-${c:0:8}
+  git -C "$WORK/fiber" checkout --quiet "$c"
+  if module "$name" "$WORK/fiber" >"$WORK/build-$name.log" 2>&1 && binary "$name" "$WORK/mod-$name" >>"$WORK/build-$name.log" 2>&1; then
+    scan+=("$name")
+  else
+    echo "$name does not build, left out"
   fi
-  git diff --stat "$first^1" "$first" | tail -25
-} | tee "$WORK/result.txt"
-fenced "$(cat "$WORK/result.txt")"
-git bisect log >"$WORK/bisect-log.txt"
-git bisect reset >/dev/null
+done
+compare "first-parent scan" main "${scan[@]}"
+git -C "$WORK/fiber" log --reverse --first-parent --format='c-%h %s' "$PLATEAU^1..$MAIN" | cut -c1-100 | tee "$WORK/scan-commits.txt"

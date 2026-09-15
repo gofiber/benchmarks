@@ -24,9 +24,10 @@ jobs:
           go-version: stable
           cache-dependency-path: "*/go.sum"
 
-      - name: Reproduce, profile and bisect the v3.5.0 routing gap
+      - name: Swap fasthttp, vary the layout and scan main
         env:
           MAIN: f128422199fe
+          PLATEAU: 6cb9479e707284db65c7d3f40f50807171fd85d3
         run: diag/run.sh
 
       - name: Upload profiles and logs
@@ -35,8 +36,5 @@ jobs:
         with:
           name: diag
           path: |
-            ${{ runner.temp }}/diag/*.prof
             ${{ runner.temp }}/diag/*.txt
-            ${{ runner.temp }}/diag/bin/v2.test
-            ${{ runner.temp }}/diag/bin/v350.test
-            ${{ runner.temp }}/diag/bin/main.test
+            ${{ runner.temp }}/diag/*.log
