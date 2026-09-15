@@ -1,0 +1,84 @@
+goos: linux
+goarch: amd64
+cpu: AMD EPYC
+                            │      v2      │                  v3                  │
+                            │    sec/op    │    sec/op     vs base                │
+Request/fasthttp_floor         24.98n ± 3%   35.55n ±  3%  +42.36% (p=0.000 n=10)
+Request/static                 92.15n ± 4%   98.43n ±  2%   +6.81% (p=0.000 n=10)
+Request/parameter              111.3n ± 4%   113.2n ±  2%        ~ (p=0.618 n=10)
+Request/wildcard               128.4n ± 1%   145.5n ±  4%  +13.36% (p=0.000 n=10)
+Request/query_lookup           124.9n ± 5%   128.8n ±  4%        ~ (p=0.197 n=10)
+Request/header_lookup          145.2n ± 3%   147.6n ±  4%        ~ (p=0.210 n=10)
+Request/locals                 112.0n ± 3%   148.0n ±  3%  +32.14% (p=0.000 n=10)
+Request/query_bind            1122.0n ± 3%   566.4n ±  2%  -49.52% (p=0.000 n=10)
+Request/middleware_chain       111.9n ± 5%   111.3n ±  3%        ~ (p=0.305 n=10)
+Request/cors_simple            247.2n ± 4%   329.1n ±  4%  +33.16% (p=0.000 n=10)
+Request/cors_preflight         655.6n ± 0%   695.4n ±  3%   +6.06% (p=0.000 n=10)
+Request/recover_no_panic       113.1n ± 3%   107.6n ±  2%   -4.86% (p=0.000 n=10)
+Request/not_found_default      433.1n ± 2%   160.7n ±  3%  -62.90% (p=0.000 n=10)
+Request/not_found_custom       292.7n ± 1%   101.7n ±  5%  -65.25% (p=0.000 n=10)
+Request/json_response          420.7n ± 1%   444.1n ±  2%   +5.56% (p=0.000 n=10)
+Request/json_bind              542.1n ± 4%   628.4n ±  4%  +15.91% (p=0.000 n=10)
+Request/json_response_1024     948.9n ± 3%   964.9n ±  4%   +1.68% (p=0.005 n=10)
+Request/json_bind_1024         1.363µ ± 3%   1.576µ ±  3%  +15.63% (p=0.000 n=10)
+Request/json_response_16384    7.733µ ± 2%   7.695µ ±  4%        ~ (p=0.481 n=10)
+Request/json_bind_16384        11.65µ ± 4%   12.42µ ± 22%   +6.58% (p=0.000 n=10)
+Request/static_routes_100      431.7n ± 3%   420.6n ±  3%   -2.58% (p=0.011 n=10)
+Request/static_routes_1000     3.191µ ± 4%   3.323µ ±  3%        ~ (p=0.075 n=10)
+geomean                        383.9n        364.9n         -4.96%
+
+                            │       v2       │                   v3                    │
+                            │      B/op      │     B/op      vs base                   │
+Request/fasthttp_floor          0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/static                  0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/parameter               0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/wildcard                2.000 ± 0%       2.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/query_lookup            0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/header_lookup           0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/locals                   0.00 ± 0%       16.00 ± 0%         ? (p=0.000 n=10)
+Request/query_bind             496.00 ± 0%       64.00 ± 0%   -87.10% (p=0.000 n=10)
+Request/middleware_chain        0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/cors_simple              0.00 ± 0%       16.00 ± 0%         ? (p=0.000 n=10)
+Request/cors_preflight          144.0 ± 0%       208.0 ± 0%   +44.44% (p=0.000 n=10)
+Request/recover_no_panic        0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/not_found_default       56.00 ± 0%        0.00 ± 0%  -100.00% (p=0.000 n=10)
+Request/not_found_custom        48.00 ± 0%        0.00 ± 0%  -100.00% (p=0.000 n=10)
+Request/json_response           112.0 ± 0%       112.0 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind               32.00 ± 0%       32.00 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_response_1024    1.188Ki ± 0%     1.188Ki ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind_1024        1.031Ki ± 0%     1.031Ki ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_response_16384   18.06Ki ± 0%     18.06Ki ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind_16384       16.04Ki ± 0%     16.04Ki ± 0%    +0.01% (p=0.000 n=10)
+Request/static_routes_100       0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/static_routes_1000      0.000 ± 0%       0.000 ± 0%         ~ (p=1.000 n=10) ¹
+geomean                                    ²                 ?                       ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean
+
+                            │      v2       │                  v3                   │
+                            │   allocs/op   │ allocs/op   vs base                   │
+Request/fasthttp_floor         0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/static                 0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/parameter              0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/wildcard               1.000 ± 0%     1.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/query_lookup           0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/header_lookup          0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/locals                 0.000 ± 0%     1.000 ± 0%         ? (p=0.000 n=10)
+Request/query_bind            22.000 ± 0%     3.000 ± 0%   -86.36% (p=0.000 n=10)
+Request/middleware_chain       0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/cors_simple            0.000 ± 0%     1.000 ± 0%         ? (p=0.000 n=10)
+Request/cors_preflight         2.000 ± 0%     4.000 ± 0%  +100.00% (p=0.000 n=10)
+Request/recover_no_panic       0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/not_found_default      3.000 ± 0%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+Request/not_found_custom       2.000 ± 0%     0.000 ± 0%  -100.00% (p=0.000 n=10)
+Request/json_response          3.000 ± 0%     3.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind              1.000 ± 0%     1.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_response_1024     3.000 ± 0%     3.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind_1024         2.000 ± 0%     2.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_response_16384    3.000 ± 0%     3.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/json_bind_16384        2.000 ± 0%     2.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/static_routes_100      0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+Request/static_routes_1000     0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=10) ¹
+geomean                                   ²               ?                       ²
+¹ all samples are equal
+² summaries must be >0 to compute geomean

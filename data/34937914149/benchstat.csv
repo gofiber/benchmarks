@@ -1,0 +1,80 @@
+goos: linux
+goarch: amd64
+cpu: AMD EPYC
+,v2,,v3,,,
+,sec/op,CI,sec/op,CI,vs base,P
+Request/fasthttp_floor,2.4975000000000004e-08,3%,3.5555e-08,3%,+42.36%,p=0.000 n=10
+Request/static,9.215000000000001e-08,4%,9.843e-08,2%,+6.81%,p=0.000 n=10
+Request/parameter,1.113e-07,4%,1.1315000000000002e-07,2%,~,p=0.618 n=10
+Request/wildcard,1.284e-07,1%,1.4555e-07,4%,+13.36%,p=0.000 n=10
+Request/query_lookup,1.2485e-07,5%,1.2875e-07,4%,~,p=0.197 n=10
+Request/header_lookup,1.452e-07,3%,1.4760000000000002e-07,4%,~,p=0.210 n=10
+Request/locals,1.1200000000000001e-07,3%,1.48e-07,3%,+32.14%,p=0.000 n=10
+Request/query_bind,1.122e-06,3%,5.664e-07,2%,-49.52%,p=0.000 n=10
+Request/middleware_chain,1.1190000000000002e-07,5%,1.1135e-07,3%,~,p=0.305 n=10
+Request/cors_simple,2.4715000000000004e-07,4%,3.291e-07,4%,+33.16%,p=0.000 n=10
+Request/cors_preflight,6.556e-07,0%,6.9535e-07,3%,+6.06%,p=0.000 n=10
+Request/recover_no_panic,1.1315e-07,3%,1.0765e-07,2%,-4.86%,p=0.000 n=10
+Request/not_found_default,4.3310000000000003e-07,2%,1.607e-07,3%,-62.90%,p=0.000 n=10
+Request/not_found_custom,2.9269999999999997e-07,1%,1.017e-07,5%,-65.25%,p=0.000 n=10
+Request/json_response,4.207e-07,1%,4.441e-07,2%,+5.56%,p=0.000 n=10
+Request/json_bind,5.4215e-07,4%,6.284e-07,4%,+15.91%,p=0.000 n=10
+Request/json_response_1024,9.4895e-07,3%,9.649e-07,4%,+1.68%,p=0.005 n=10
+Request/json_bind_1024,1.3625e-06,3%,1.5755e-06,3%,+15.63%,p=0.000 n=10
+Request/json_response_16384,7.733e-06,2%,7.6945e-06,4%,~,p=0.481 n=10
+Request/json_bind_16384,1.1649e-05,4%,1.2416000000000001e-05,22%,+6.58%,p=0.000 n=10
+Request/static_routes_100,4.3170000000000003e-07,3%,4.2055000000000004e-07,3%,-2.58%,p=0.011 n=10
+Request/static_routes_1000,3.1910000000000004e-06,4%,3.3225e-06,3%,~,p=0.075 n=10
+geomean,3.8391370305869736e-07,,3.648894334083246e-07,,-4.96%,
+
+,v2,,v3,,,
+,B/op,CI,B/op,CI,vs base,P
+Request/fasthttp_floor,0,0%,0,0%,~,p=1.000 n=10
+Request/static,0,0%,0,0%,~,p=1.000 n=10
+Request/parameter,0,0%,0,0%,~,p=1.000 n=10
+Request/wildcard,2,0%,2,0%,~,p=1.000 n=10
+Request/query_lookup,0,0%,0,0%,~,p=1.000 n=10
+Request/header_lookup,0,0%,0,0%,~,p=1.000 n=10
+Request/locals,0,0%,16,0%,?,p=0.000 n=10
+Request/query_bind,496,0%,64,0%,-87.10%,p=0.000 n=10
+Request/middleware_chain,0,0%,0,0%,~,p=1.000 n=10
+Request/cors_simple,0,0%,16,0%,?,p=0.000 n=10
+Request/cors_preflight,144,0%,208,0%,+44.44%,p=0.000 n=10
+Request/recover_no_panic,0,0%,0,0%,~,p=1.000 n=10
+Request/not_found_default,56,0%,0,0%,-100.00%,p=0.000 n=10
+Request/not_found_custom,48,0%,0,0%,-100.00%,p=0.000 n=10
+Request/json_response,112,0%,112,0%,~,p=1.000 n=10
+Request/json_bind,32,0%,32,0%,~,p=1.000 n=10
+Request/json_response_1024,1216,0%,1216,0%,~,p=1.000 n=10
+Request/json_bind_1024,1056,0%,1056,0%,~,p=1.000 n=10
+Request/json_response_16384,18498,0%,18498,0%,~,p=1.000 n=10
+Request/json_bind_16384,16420,0%,16422,0%,+0.01%,p=0.000 n=10
+Request/static_routes_100,0,0%,0,0%,~,p=1.000 n=10
+Request/static_routes_1000,0,0%,0,0%,~,p=1.000 n=10
+geomean,,,,,?,
+
+,v2,,v3,,,
+,allocs/op,CI,allocs/op,CI,vs base,P
+Request/fasthttp_floor,0,0%,0,0%,~,p=1.000 n=10
+Request/static,0,0%,0,0%,~,p=1.000 n=10
+Request/parameter,0,0%,0,0%,~,p=1.000 n=10
+Request/wildcard,1,0%,1,0%,~,p=1.000 n=10
+Request/query_lookup,0,0%,0,0%,~,p=1.000 n=10
+Request/header_lookup,0,0%,0,0%,~,p=1.000 n=10
+Request/locals,0,0%,1,0%,?,p=0.000 n=10
+Request/query_bind,22,0%,3,0%,-86.36%,p=0.000 n=10
+Request/middleware_chain,0,0%,0,0%,~,p=1.000 n=10
+Request/cors_simple,0,0%,1,0%,?,p=0.000 n=10
+Request/cors_preflight,2,0%,4,0%,+100.00%,p=0.000 n=10
+Request/recover_no_panic,0,0%,0,0%,~,p=1.000 n=10
+Request/not_found_default,3,0%,0,0%,-100.00%,p=0.000 n=10
+Request/not_found_custom,2,0%,0,0%,-100.00%,p=0.000 n=10
+Request/json_response,3,0%,3,0%,~,p=1.000 n=10
+Request/json_bind,1,0%,1,0%,~,p=1.000 n=10
+Request/json_response_1024,3,0%,3,0%,~,p=1.000 n=10
+Request/json_bind_1024,2,0%,2,0%,~,p=1.000 n=10
+Request/json_response_16384,3,0%,3,0%,~,p=1.000 n=10
+Request/json_bind_16384,2,0%,2,0%,~,p=1.000 n=10
+Request/static_routes_100,0,0%,0,0%,~,p=1.000 n=10
+Request/static_routes_1000,0,0%,0,0%,~,p=1.000 n=10
+geomean,,,,,?,
