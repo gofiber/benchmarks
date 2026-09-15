@@ -4,5 +4,6 @@
 # compare.sh output
 results/
 
+.claude
 .idea
 __pycache__/

@@ -580,7 +580,7 @@ async function update() {
     renderOverview(tables, entry);
     renderChart(rows, metric);
     renderTable(rows, metric);
-    state.rendered = run;
+    state.rendered = { run, metric: key };
   } catch (err) {
     if (run === state.run) fail(err);
   }
@@ -588,10 +588,11 @@ async function update() {
 
 function fail(err) {
   main.classList.remove('loading');
-  // keep the selector in line with the snapshot that is still on screen
+  // keep the controls in line with the snapshot and metric still on screen
   if (state.rendered) {
-    state.run = state.rendered;
-    $('run').value = state.rendered;
+    state.run = state.rendered.run;
+    state.metric = state.rendered.metric;
+    $('run').value = state.run;
   }
   $('error').textContent = `Could not load the results (${err.message}).`;
 }
