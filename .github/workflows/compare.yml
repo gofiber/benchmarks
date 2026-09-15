@@ -37,7 +37,7 @@ jobs:
       - name: Test the paired comparison
         run: python3 -m unittest test_paired
 
-      - name: Compare v2 and v3
+      - name: Compare Fiber versions
         run: ./compare.sh
 
       - name: Write job summary

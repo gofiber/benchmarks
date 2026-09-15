@@ -19,23 +19,26 @@ class PairedTest(unittest.TestCase):
     def test_pairs_cancel_drift(self):
         drift = [1.0, 1.6] * 5
         runs = {
-            # v3 is 5% slower in every round, while the drift spreads each version by 60%
-            "static": ([100 * d for d in drift], [105 * d for d in drift]),
-            "parameter": ([100.0] * 10, [101.0, 99.0] * 5),
-            "fasthttp_floor": ([100.0] * 10, [50.0, 200.0] * 5),
+            # v3 is 5% slower and main 5% faster in every round, while the drift spreads each target by 60%
+            "v2": {"static": [100 * d for d in drift], "parameter": [100.0] * 10, "fasthttp_floor": [100.0] * 10},
+            "v3": {"static": [105 * d for d in drift], "parameter": [101.0, 99.0] * 5, "fasthttp_floor": [50.0, 200.0] * 5},
+            "main": {"static": [95 * d for d in drift], "parameter": [102.0, 98.0] * 5, "fasthttp_floor": [50.0, 200.0] * 5},
         }
         with tempfile.TemporaryDirectory() as tmp:
-            for i, version in enumerate(("v2", "v3")):
-                lines = [f"BenchmarkRequest/{name}  1000  {samples[i][n]:.3f} ns/op" for n in range(10) for name, samples in runs.items()]
-                Path(tmp, f"{version}.txt").write_text("\n".join(lines) + "\n")
+            for target, scenarios in runs.items():
+                lines = [f"BenchmarkRequest/{name}  1000  {samples[n]:.3f} ns/op" for n in range(10) for name, samples in scenarios.items()]
+                Path(tmp, f"{target}.txt").write_text("\n".join(lines) + "\n")
             with contextlib.redirect_stdout(io.StringIO()):
-                paired.main(tmp)
+                paired.main(tmp, list(runs))
             with open(Path(tmp, "paired.csv"), newline="") as f:
-                rows = {r["name"]: r for r in csv.DictReader(f)}
-            self.assertAlmostEqual(float(rows["static"]["delta"]), 5)
-            self.assertEqual(rows["static"]["significant"], "True")
-            self.assertEqual(rows["parameter"]["significant"], "False")
-            # with fasthttp_floor the median half-width would be 1.0
+                rows = {(r["target"], r["name"]): r for r in csv.DictReader(f)}
+            self.assertNotIn(("v2", "static"), rows)
+            self.assertAlmostEqual(float(rows["v3", "static"]["delta"]), 5)
+            self.assertAlmostEqual(float(rows["main", "static"]["delta"]), -5)
+            self.assertAlmostEqual(float(rows["main", "static"]["value"]) / float(rows["main", "static"]["base"]), 0.95)
+            self.assertEqual(rows["v3", "static"]["significant"], "True")
+            self.assertEqual(rows["v3", "parameter"]["significant"], "False")
+            # with fasthttp_floor the median half-width would be 1.5
             self.assertEqual(Path(tmp, "noise").read_text(), "0.5\n")
 
 

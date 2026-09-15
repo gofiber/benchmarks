@@ -3,17 +3,17 @@
   <img height="125" alt="Fiber Benchmarks" src="https://raw.githubusercontent.com/gofiber/benchmarks/main/.github/logo.svg#gh-light-mode-only" />
 </p>
 
-In-process request benchmarks for Fiber v2 and v3. Each scenario is written against the version's own API, and each version builds with the dependencies it ships with.
+In-process request benchmarks for Fiber v2 and v3: the latest v2 release against v3.0.0, the latest v3 release and v3 `main`. Each scenario is written against the version's own API, and each version builds with the dependencies it ships with.
 
 **Results:** https://gofiber.github.io/benchmarks/
 
 | Path | Content |
 | --- | --- |
-| `v2/`, `v3/` | One Go module per major version, the Fiber pin in `go.mod` is bumped by Dependabot |
+| `v2/`, `v3/` | One Go module per major version, the Fiber pin in `go.mod` is bumped by Dependabot. `compare.sh` also builds the v3 scenarios against v3.0.0 and `main` |
 | `*/harness_test.go` | Request parsing, timing and response checks, identical in both modules |
 | `*/scenarios_test.go` | The scenarios in each version's API |
-| `compare.sh` | Paired runs of both versions and the `benchstat` comparison |
-| `paired.py` | Median v3/v2 time ratio per scenario with a sign-test interval |
+| `compare.sh` | Paired runs of all versions and the `benchstat` comparison |
+| `paired.py` | Median time ratio of each version against v2 per scenario with a sign-test interval |
 | `site/` | The results page and the script that publishes a run to it |
 
 ## Running
@@ -30,7 +30,8 @@ CI runs the comparison on every push and pull request. The paired and benchstat 
 ## Reading the results
 
 - `sec/op` covers parsing the raw request and the handler, as a server runs them for every request. App construction, writing the response and the network are not included, so it is not end-to-end latency.
-- Each round runs v2 and v3 of a scenario back to back, alternating which goes first. `paired.py` reports the median of these per-round v3/v2 ratios with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
+- Each round runs all versions of a scenario back to back, rotating which goes first. `paired.py` reports the median of the per-round ratios against v2 with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
+- v3.0.0 and `main` are resolved on every run, `main` at its latest commit. The published metadata names the exact versions.
 - Every scenario checks status, body and required headers before and after timing.
 - `fasthttp_floor` runs no Fiber code and shows what the fasthttp version alone changes.
 - `not_found_default` uses each version's default body, `not_found_custom` the same custom body in both.
