@@ -24,7 +24,10 @@ jobs:
           go-version: stable
           cache-dependency-path: "*/go.sum"
 
-      - name: Measure every fasthttp release
+      - name: Measure the host fast path
+        env:
+          OPT_REPO: https://github.com/ReneWerner87/fasthttp
+          OPT_REF: perf/host-fast-path
         run: diag/run.sh
 
       - name: Upload results
