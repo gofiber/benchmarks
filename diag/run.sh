@@ -2,7 +2,7 @@
 # Does the host fast path pay off on this runner? valyala/fasthttp master against the branch, each in several function layouts.
 # shellcheck disable=SC2016 # the backticks are markdown fences for the job summary
 set -euo pipefail
-export DIAG=$PWD/diag WORK=${RUNNER_TEMP:-/tmp}/diag ROUNDS=${ROUNDS:-8} LC_ALL=C
+export DIAG=$PWD/diag WORK=${RUNNER_TEMP:-/tmp}/diag ROUNDS=${ROUNDS:-8} LAYOUTS=${LAYOUTS:-4} LC_ALL=C
 : "${OPT_REPO:?OPT_REPO must name the fork}" "${VARIANTS:?VARIANTS must list name:ref pairs}"
 # shellcheck source=diag/lib.sh
 source "$DIAG/lib.sh"
@@ -23,7 +23,7 @@ build_variant() { # build_variant NAME SOURCE_DIR
   cp "$DIAG/floor_test.go" "$dir"
   printf 'module floor\n\ngo 1.27.0\n\nrequire github.com/valyala/fasthttp v1.74.0\n\nreplace github.com/valyala/fasthttp => %s\n' "$2" >"$dir/go.mod"
   (cd "$dir" && go mod tidy)
-  for l in 0 1 2 3; do
+  for ((l = 0; l < LAYOUTS; l++)); do
     flags=""
     ((l == 0)) || flags="-randlayout=$l"
     binary "$1-l$l" "$dir" "$flags"
