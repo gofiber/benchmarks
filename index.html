@@ -73,12 +73,13 @@ select { max-width: 100%; }
 .card { margin: 0 0 16px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .card > p { margin-top: 4px; }
 .chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 16px; }
 .tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--page); border: 1px solid var(--border); border-radius: 10px; }
 .tile-title { margin-bottom: 2px; font-weight: 600; }
 .stat { display: flex; align-items: baseline; gap: 8px; }
-.stat-version { width: 4.5em; color: var(--muted); font-size: 12px; }
+.stat-version { width: 7.2em; color: var(--muted); font-size: 12px; }
 .stat.current .stat-version { color: var(--ink); font-weight: 600; }
+.dep { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
 .stat-value { font-size: 18px; font-weight: 600; white-space: nowrap; }
 .stat-unit { color: var(--ink-2); font-size: 12px; font-weight: 400; }
 .tile-time { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -285,6 +286,12 @@ function versionsOf(run) {
   return run.targets || [{ id: 'v2', version: run.v2 }, { id: 'v3', version: run.v3 }];
 }
 function label(t) { return t.id === 'main' ? 'main' : t.version; }
+// the fasthttp pin rides under every version, snapshots from before it was recorded simply have none
+function withFasthttp(node, t) {
+  node.append(label(t));
+  if (t.fasthttp) node.append(el('span', 'dep', `fasthttp ${t.fasthttp}`));
+  return node;
+}
 // main resolves to a pseudo-version that ends in its commit
 function describe(t) { return t.id === 'main' ? `main at ${t.version.split('-').at(-1).slice(0, 7)}` : t.version; }
 
@@ -466,11 +473,11 @@ function medianCI(rows) {
   return Number.isInteger(mid) ? (cis[mid - 1] + cis[mid]) / 2 : cis[Math.floor(mid)];
 }
 
-function stat(version, sec, current) {
+function stat(t, sec, current) {
   const value = el('span', 'stat-value', compact.format(1 / sec));
   value.append(el('span', 'stat-unit', ' req/s'));
   const line = el('span', current ? 'stat current' : 'stat');
-  line.append(el('span', 'stat-version', version), value);
+  line.append(withFasthttp(el('span', 'stat-version'), t), value);
   return line;
 }
 
@@ -482,7 +489,7 @@ function rpsCell(sec) {
 
 function byName(rows) { return new Map((rows || []).map((r) => [r.name, r])); }
 
-function renderOverview(tables, run, [, ...others], target, view) {
+function renderOverview(tables, run, [base, ...others], target, view) {
   const times = new Map(others.map((t) => [t.id, byName(tables[t.id]?.['sec/op'])]));
   const selected = times.get(target.id);
   const allocs = byName(tables[target.id]?.['allocs/op']);
@@ -492,8 +499,8 @@ function renderOverview(tables, run, [, ...others], target, view) {
     const tile = el('div', `tile ${r.kind}`);
     tile.append(
       el('span', 'tile-title', title),
-      stat(view.base, r.base),
-      ...others.filter((t) => times.get(t.id).has(name)).map((t) => stat(label(t), times.get(t.id).get(name).value, t === target)),
+      stat(base, r.base),
+      ...others.filter((t) => times.get(t.id).has(name)).map((t) => stat(t, times.get(t.id).get(name).value, t === target)),
       el('span', 'tile-time', `${formatTime(r.base)} → ${formatTime(r.value)} per request`),
       el('span', 'delta', r.kind === 'neutral' ? 'No significant difference' : `${formatPct(rpsChange(r))} req/s in ${view.target}`),
     );
@@ -501,7 +508,8 @@ function renderOverview(tables, run, [, ...others], target, view) {
   }));
 
   const head = document.createElement('thead');
-  head.append(tableRow('th', ['Scenario', view.base, ...others.map(label), `Change in ${view.target}`, 'Allocations']));
+  head.append(tableRow('th', ['Scenario', withFasthttp(el('th'), base), ...others.map((t) => withFasthttp(el('th'), t)),
+    `Change in ${view.target}`, 'Allocations']));
   const body = document.createElement('tbody');
   for (const [group, list] of grouped([...selected.values()])) {
     body.append(groupRow(group, others.length + 4));
@@ -565,12 +573,13 @@ function renderChart(rows, view) {
     : zeros.length ? `${zeros.length} scenarios ${metric.zero} in either version: ${zeros.join(', ')}.` : '';
 }
 
-function renderTable(tables, [, ...others], target, view) {
+function renderTable(tables, [base, ...others], target, view) {
   const { metric } = view;
   const values = new Map(others.map((t) => [t.id, byName(tables[t.id]?.[metric.unit])]));
   $('details-title').textContent = `Details: ${metric.title.toLowerCase()}`;
   const head = document.createElement('thead');
-  head.append(tableRow('th', ['Scenario', view.base, ...others.map(label), `Change in ${view.target}`, 'Significance']));
+  head.append(tableRow('th', ['Scenario', withFasthttp(el('th'), base), ...others.map((t) => withFasthttp(el('th'), t)),
+    `Change in ${view.target}`, 'Significance']));
   const body = document.createElement('tbody');
   for (const [group, list] of grouped([...values.get(target.id).values()])) {
     body.append(groupRow(group, others.length + 4));
