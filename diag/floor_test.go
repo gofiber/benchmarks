@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
@@ -43,6 +44,10 @@ func BenchmarkRequest(b *testing.B) {
 			served++
 			c.SetBodyString("hello")
 		}}
+		// the option exists only on the branch under test, so set it by name
+		if f := reflect.ValueOf(s).Elem().FieldByName("LazyRequestTime"); f.IsValid() && f.Kind() == reflect.Bool {
+			f.SetBool(true)
+		}
 		conn := &pipeline{left: b.N}
 		b.ReportAllocs()
 		b.ResetTimer()
