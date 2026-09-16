@@ -6,6 +6,10 @@ export LC_ALL=C
 count=${COUNT:-10}
 benchtime=${BENCHTIME:-500ms}
 layouts=${LAYOUTS:-5}
+if [[ ! $layouts =~ ^[1-9][0-9]*$ ]]; then
+  echo "LAYOUTS must be a positive integer" >&2
+  exit 2
+fi
 benchstat=golang.org/x/perf/cmd/benchstat@v0.0.0-20260825160852-19be9d8e6c70
 # id=module builds the module's go.mod pin, id=module@ref that Fiber ref; the first target is the baseline
 targets=(v2=v2 v3.0.0=v3@v3.0.0 v3=v3 main=v3@main)
