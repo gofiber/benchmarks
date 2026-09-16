@@ -28,8 +28,8 @@ jobs:
         env:
           OPT_REPO: https://github.com/ReneWerner87/fasthttp
           VARIANTS: "fast:perf/host-fast-path lazy:perf/lazy-request-time"
-          LAYOUTS: "10"
-          ROUNDS: "10"
+          LAYOUTS: "40"
+          ROUNDS: "5"
         run: diag/run.sh
 
       - name: Upload results
