@@ -202,8 +202,9 @@ footer { color: var(--ink-2); }
     <ul>
       <li>Requests per second are one divided by the median time per request on a single CPU core, from parsing the request to the end of the handler. A real server also serializes the response and sends it over the network, so production throughput is lower.</li>
       <li>Each round runs every version of a scenario back to back, rotating which goes first. A time change is the median of the per-round ratios against v2, so load on the CI host that hits both halves of a pair cancels out. It can differ slightly from the ratio of the two medians.</li>
-      <li>Thin gray bars and <span class="muted">~</span> mean no significant difference: the sign-test interval of a time change includes zero, or benchstat found p &ge; 0.05 for memory, allocations and snapshots from before paired rounds. A run whose median interval is ±5% or wider gets twice the rounds.</li>
+      <li>Thin gray bars and <span class="muted">~</span> mean no significant difference: the sign-test interval of a time change includes zero, or benchstat found p &ge; 0.05 for memory, allocations and snapshots from before paired rounds. A run whose median interval is ±10% or wider gets twice the rounds.</li>
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
+      <li>Each version is built several times with different function layouts, and the rounds cycle through them. Where the linker puts a function changes a cheap scenario by tens of nanoseconds on these CPUs, so without this a lucky layout would look like a win.</li>
       <li>v3.0.0 and main build with the dependencies they ship with, main at its latest commit when the snapshot ran. Snapshots that compare only v2 and v3 built each request through setters and left out HTTP parsing.</li>
       <li><code>fasthttp_floor</code> runs no Fiber code and shows what the fasthttp version alone changes.</li>
     </ul>
@@ -244,8 +245,8 @@ const headlines = [
 // the latest v3 release, and the only version older snapshots compare with v2
 const defaultTarget = 'v3';
 
-// a quiet CI run sits around ±3% paired and ±5% per version; compare.sh extends a paired run from ±5%
-const noisyPaired = 5;
+// paired runs average over function layouts, which widens the interval; compare.sh extends a run from ±10%
+const noisyPaired = 10;
 const noisyCI = 15;
 
 const $ = (id) => document.getElementById(id);
@@ -442,7 +443,7 @@ function renderTargets(run, [, ...others], target) {
 
 function renderMeta(run, [base, ...others]) {
   const meta = $('meta');
-  const rounds = run.rounds ? ` · ${run.rounds} paired rounds` : '';
+  const rounds = run.rounds ? ` · ${run.rounds} paired rounds${run.layouts ? ` over ${run.layouts} layouts` : ''}` : '';
   meta.replaceChildren(`Fiber ${base.version} vs ${others.map(describe).join(', ')}${rounds} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
   const links = [
     ['CI run', run.url],
