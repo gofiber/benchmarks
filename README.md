@@ -33,7 +33,7 @@ CI runs the comparison on every push and pull request. The paired and benchstat 
 - `sec/op` covers parsing the raw request and the handler, as a server runs them for every request. App construction, serializing the response and the network are not included, so it is not end-to-end latency.
 - Where the linker puts a function changes a cheap scenario by tens of nanoseconds, more than most version differences. Every version is therefore built in `LAYOUTS` layouts, the default one and random ones, and each round moves to the next. The interval covers that spread.
 - Each round runs all versions of a scenario back to back, rotating which goes first. `paired.py` reports the median of the per-round ratios against v2 with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
-- v3.0.0 and `main` are resolved on every run, `main` at its latest commit. The published metadata names the exact versions.
+- v3.0.0 and `main` are resolved on every run, `main` at its latest commit. The published metadata names the exact Fiber and fasthttp versions, and the page shows the fasthttp pin under every version.
 - Every scenario checks status, body and required headers before and after timing.
 - `fasthttp_floor` runs no Fiber code and shows what the fasthttp version alone changes.
 - `not_found_default` uses each version's default body, `not_found_custom` the same custom body in both.

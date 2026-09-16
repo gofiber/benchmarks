@@ -23,6 +23,7 @@ rm -rf results
 mkdir results
 ids=()
 versions=()
+fasthttps=()
 for target in "${targets[@]}"; do
   id=${target%%=*}
   module=${target#*=}
@@ -45,6 +46,8 @@ for target in "${targets[@]}"; do
   done
   ids+=("$id")
   versions+=("$(cd "$dir" && go list -m -f '{{.Version}}' "github.com/gofiber/fiber/$module")")
+  # the fasthttp pin explains most of what the Fiber versions differ in, so the page shows it too
+  fasthttps+=("$(cd "$dir" && go list -m -f '{{.Version}}' github.com/valyala/fasthttp)")
   "results/$id-l0.test" -test.run '^$' -test.bench . -test.benchtime 1x -test.cpu 1 |
     sed -n 's|^BenchmarkRequest/\([^[:space:]]*\).*|\1|p' >"results/$id.names"
 done
@@ -98,7 +101,7 @@ go run "$benchstat" -ignore pkg -format csv "${columns[@]}" >results/benchstat.c
 
 # what was compared, for the results page
 list=()
-for i in "${!ids[@]}"; do list+=("{\"id\":\"${ids[i]}\",\"version\":\"${versions[i]}\"}"); done
+for i in "${!ids[@]}"; do list+=("{\"id\":\"${ids[i]}\",\"version\":\"${versions[i]}\",\"fasthttp\":\"${fasthttps[i]}\"}"); done
 printf '{"targets":[%s],"go":"%s","cpu":"%s","date":"%s","rounds":%d,"layouts":%d,"noise":%s}\n' \
   "$(IFS=,; echo "${list[*]}")" \
   "$(go version "results/${ids[0]}-l0.test" | sed 's/.*: //')" \
