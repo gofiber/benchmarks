@@ -39,15 +39,14 @@ done
 
 mapfile -t paths < <(bins "${names[@]}")
 measure "${paths[@]}" >"$WORK/raw-fastpath.txt"
-out=$(python3 "$DIAG/compare2.py" "$WORK/raw-fastpath.txt" base $(for pair in $VARIANTS; do printf '%s ' "${pair%%:*}"; done))
+mapfile -t reported < <(printf '%s\n' base; for pair in $VARIANTS; do printf '%s\n' "${pair%%:*}"; done)
+out=$(python3 "$DIAG/compare2.py" "$WORK/raw-fastpath.txt" "${reported[@]}")
 printf '%s\n' "$out" | tee "$WORK/table-fastpath.txt"
 printf '### host fast path\n```text\n%s\n```\n' "$out" >>"$summary"
 
 # where the server path spends its time on this runner, for the parts the fast path does not touch
-for variant in base; do
-  "$WORK/bin/$variant-l0.test" -test.run '^$' -test.bench '^BenchmarkRequest$/^serve_conn$' -test.benchtime 10s -test.cpu 1 \
-    -test.cpuprofile "$WORK/$variant.prof" >/dev/null
-  echo "== profile $variant"
-  go tool pprof -top -nodecount 20 "$WORK/bin/$variant-l0.test" "$WORK/$variant.prof" | tee "$WORK/top-$variant.txt"
-done
+"$WORK/bin/base-l0.test" -test.run '^$' -test.bench '^BenchmarkRequest$/^serve_conn$' -test.benchtime 10s -test.cpu 1 \
+  -test.cpuprofile "$WORK/base.prof" >/dev/null
+echo "== profile base"
+go tool pprof -top -nodecount 20 "$WORK/bin/base-l0.test" "$WORK/base.prof" | tee "$WORK/top-base.txt"
 printf '### server path profile, master\n```text\n%s\n```\n' "$(cat "$WORK/top-base.txt")" >>"$summary"
