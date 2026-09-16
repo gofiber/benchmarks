@@ -44,6 +44,13 @@ out=$(python3 "$DIAG/compare2.py" "$WORK/raw-fastpath.txt" "${reported[@]}")
 printf '%s\n' "$out" | tee "$WORK/table-fastpath.txt"
 printf '### host fast path\n```text\n%s\n```\n' "$out" >>"$summary"
 
+# the same numbers against the first variant, the base a stacked change would land on
+if ((${#reported[@]} > 2)); then
+  out=$(python3 "$DIAG/compare2.py" "$WORK/raw-fastpath.txt" "${reported[@]:1}")
+  printf '%s\n' "$out" | tee "$WORK/table-stacked.txt"
+  printf '### against %s\n```text\n%s\n```\n' "${reported[1]}" "$out" >>"$summary"
+fi
+
 # where the server path spends its time on this runner, for the parts the fast path does not touch
 "$WORK/bin/base-l0.test" -test.run '^$' -test.bench '^BenchmarkRequest$/^serve_conn$' -test.benchtime 10s -test.cpu 1 \
   -test.cpuprofile "$WORK/base.prof" >/dev/null

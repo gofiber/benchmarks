@@ -27,7 +27,7 @@ jobs:
       - name: Measure the host fast path
         env:
           OPT_REPO: https://github.com/ReneWerner87/fasthttp
-          VARIANTS: "fast:perf/host-fast-path lazy:perf/lazy-request-time"
+          VARIANTS: "p2387:base/pr2387 skip:perf/host-single-pass"
           LAYOUTS: "40"
           ROUNDS: "5"
         run: diag/run.sh
