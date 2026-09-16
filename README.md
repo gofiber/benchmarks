@@ -23,13 +23,15 @@ make compare                        # COUNT=10 BENCHTIME=500ms
 COUNT=20 BENCHTIME=1s make compare
 ```
 
-It needs Go and python3. A run whose median paired interval is ±5% or wider after `COUNT` rounds gets `COUNT` more.
+It needs Go and python3. A run whose median paired interval is ±10% or wider after `COUNT` rounds gets `COUNT` more.
+`LAYOUTS=5` builds every version that many times with different function layouts, and the rounds cycle through them.
 
 CI runs the comparison on every push and pull request. The paired and benchstat tables are in the job summary, the raw results are attached as an artifact.
 
 ## Reading the results
 
 - `sec/op` covers parsing the raw request and the handler, as a server runs them for every request. App construction, serializing the response and the network are not included, so it is not end-to-end latency.
+- Where the linker puts a function changes a cheap scenario by tens of nanoseconds, more than most version differences. Every version is therefore built in `LAYOUTS` layouts, the default one and random ones, and each round moves to the next. The interval covers that spread.
 - Each round runs all versions of a scenario back to back, rotating which goes first. `paired.py` reports the median of the per-round ratios against v2 with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
 - v3.0.0 and `main` are resolved on every run, `main` at its latest commit. The published metadata names the exact versions.
 - Every scenario checks status, body and required headers before and after timing.
