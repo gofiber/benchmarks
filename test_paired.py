@@ -20,9 +20,9 @@ class PairedTest(unittest.TestCase):
         drift = [1.0, 1.6] * 5
         runs = {
             # v3 is 5% slower and main 5% faster in every round, while the drift spreads each target by 60%
-            "v2": {"static": [100 * d for d in drift], "parameter": [100.0] * 10, "fasthttp_floor": [100.0] * 10},
-            "v3": {"static": [105 * d for d in drift], "parameter": [101.0, 99.0] * 5, "fasthttp_floor": [50.0, 200.0] * 5},
-            "main": {"static": [95 * d for d in drift], "parameter": [102.0, 98.0] * 5, "fasthttp_floor": [50.0, 200.0] * 5},
+            "v2": {"static": [100 * d for d in drift], "parameter": [100.0] * 10, "fasthttp_only": [100.0] * 10},
+            "v3": {"static": [105 * d for d in drift], "parameter": [101.0, 99.0] * 5, "fasthttp_only": [50.0, 200.0] * 5},
+            "main": {"static": [95 * d for d in drift], "parameter": [102.0, 98.0] * 5, "fasthttp_only": [50.0, 200.0] * 5},
         }
         with tempfile.TemporaryDirectory() as tmp:
             for target, scenarios in runs.items():
@@ -38,7 +38,7 @@ class PairedTest(unittest.TestCase):
             self.assertAlmostEqual(float(rows["main", "static"]["value"]) / float(rows["main", "static"]["base"]), 0.95)
             self.assertEqual(rows["v3", "static"]["significant"], "True")
             self.assertEqual(rows["v3", "parameter"]["significant"], "False")
-            # with fasthttp_floor the median half-width would be 1.5
+            # with fasthttp_only the median half-width would be 1.5
             self.assertEqual(Path(tmp, "noise").read_text(), "0.5\n")
 
 

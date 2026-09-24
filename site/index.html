@@ -207,7 +207,7 @@ footer { color: var(--ink-2); }
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
       <li>Each version is built several times with different function layouts, and the rounds cycle through them. Where the linker puts a function changes a cheap scenario by tens of nanoseconds on these CPUs, so without this a lucky layout would look like a win.</li>
       <li>v3.0.0 and main build with the dependencies they ship with, main at its latest commit when the snapshot ran. Snapshots that compare only v2 and v3 built each request through setters and left out HTTP parsing.</li>
-      <li><code>fasthttp_floor</code> runs no Fiber code and shows what the fasthttp version alone changes.</li>
+      <li><code>fasthttp_only</code> runs no Fiber code and shows what the fasthttp version alone changes.</li>
     </ul>
   </section>
 
@@ -225,7 +225,7 @@ const metrics = {
 };
 
 // runs no Fiber code, so it stays out of the headline numbers, counts and noise
-const baseline = ['fasthttp_floor'];
+const baseline = ['fasthttp_only'];
 
 const groups = [
   ['Routing', ['static', 'parameter', 'wildcard', 'static_routes_100', 'static_routes_1000']],
@@ -295,6 +295,9 @@ function withFasthttp(node, t) {
 // main resolves to a pseudo-version that ends in its commit
 function describe(t) { return t.id === 'main' ? `main at ${t.version.split('-').at(-1).slice(0, 7)}` : t.version; }
 
+// snapshots from before the rename call fasthttp_only fasthttp_floor
+function scenario(name) { return name === 'fasthttp_floor' ? 'fasthttp_only' : name; }
+
 // benchstat -format csv: one block per unit, opened by a row of version ids and a ",unit,CI,unit,CI,vs base,P" row
 // that repeats "unit,CI,vs base,P" for every version after the baseline; tables[id][unit] holds a version's rows
 function parse(csv) {
@@ -307,7 +310,7 @@ function parse(csv) {
     if (cells[0] === '' && cells[2] === 'CI') { unit = cells[1]; continue; }
     if (cells[0] === '') { ids = cells.filter(Boolean); continue; }
     if (!unit || cells[0] === 'geomean') continue;
-    const name = cells[0].replace(/^Request\//, '');
+    const name = scenario(cells[0].replace(/^Request\//, ''));
     const base = Number(cells[1]);
     ids.slice(1).forEach((id, i) => {
       const [value, ciValue, delta, p] = cells.slice(3 + 4 * i, 7 + 4 * i);
@@ -333,7 +336,7 @@ function pair(tables, csv) {
   for (const line of lines) {
     const p = Object.fromEntries(line.split(',').map((v, i) => [keys[i], v]));
     // snapshots that compare only v2 and v3 have no target column
-    const r = tables[p.target || 'v3']?.['sec/op']?.find((row) => row.name === p.name);
+    const r = tables[p.target || 'v3']?.['sec/op']?.find((row) => row.name === scenario(p.name));
     if (!r) continue;
     r.pct = Number(p.delta);
     r.rounds = Number(p.rounds);

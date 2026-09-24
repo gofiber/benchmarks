@@ -30,7 +30,7 @@ func ok(c fiber.Ctx) error { return c.SendString("ok") }
 func scenarios() []scenario {
 	list := []scenario{
 		{
-			name: "fasthttp_floor", method: "GET", uri: "/hello", wantStatus: 200, wantBody: "hello",
+			name: "fasthttp_only", method: "GET", uri: "/hello", wantStatus: 200, wantBody: "hello",
 			handler: func(c *fasthttp.RequestCtx) { c.SetBodyString("hello") },
 		},
 		{

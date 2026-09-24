@@ -88,8 +88,8 @@ def main(results, ids):
         noise = None
     else:
         # the page leaves the baseline out as well
-        noise = round(statistics.median((r["hi"] - r["lo"]) / 2 for r in rows if r["name"] != "fasthttp_floor"), 1)
-        print(f"median interval ±{noise}% without fasthttp_floor, {sum(r['significant'] for r in rows)} of {len(rows)} significant, "
+        noise = round(statistics.median((r["hi"] - r["lo"]) / 2 for r in rows if r["name"] != "fasthttp_only"), 1)
+        print(f"median interval ±{noise}% without fasthttp_only, {sum(r['significant'] for r in rows)} of {len(rows)} significant, "
               f"{rows[0]['rounds']} rounds, {rows[0]['confidence']:.1%} sign-test confidence")
     # compare.sh extends a noisy run by it, the page reads it from meta.json
     Path(results, "noise").write_text(f"{json.dumps(noise)}\n")
