@@ -207,6 +207,7 @@ footer { color: var(--ink-2); }
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
       <li>Each version is built several times with different function layouts, and the rounds cycle through them. Where the linker puts a function changes a cheap scenario by tens of nanoseconds on these CPUs, so without this a lucky layout would look like a win.</li>
       <li>v3.0.0 and main build with the dependencies they ship with, main at its latest commit when the snapshot ran. Snapshots that compare only v2 and v3 built each request through setters and left out HTTP parsing.</li>
+      <li>Snapshots started by hand can add main on the latest commit of fasthttp master, to show unreleased fasthttp changes before Fiber pins them.</li>
       <li><code>fasthttp_only</code> runs no Fiber code and shows what the fasthttp version alone changes.</li>
     </ul>
   </section>
@@ -285,15 +286,22 @@ function rpsChange(r) { return (100 / (100 + r.pct) - 1) * 100; }
 function versionsOf(run) {
   return run.targets || [{ id: 'v2', version: run.v2 }, { id: 'v3', version: run.v3 }];
 }
-function label(t) { return t.id === 'main' ? 'main' : t.version; }
+// main and main on fasthttp master share a pseudo-version, the id tells them apart
+const labels = { main: 'main', 'main-fasthttp': 'main + fasthttp master' };
+function label(t) { return labels[t.id] || t.version; }
 // the fasthttp pin rides under every version, snapshots from before it was recorded simply have none
 function withFasthttp(node, t) {
   node.append(label(t));
   if (t.fasthttp) node.append(el('span', 'dep', `fasthttp ${t.fasthttp}`));
   return node;
 }
-// main resolves to a pseudo-version that ends in its commit
-function describe(t) { return t.id === 'main' ? `main at ${t.version.split('-').at(-1).slice(0, 7)}` : t.version; }
+// a branch resolves to a pseudo-version that ends in its commit, or to the release tagged on it
+function commit(version) { return /-([0-9a-f]{12})$/.exec(version)?.[1].slice(0, 7) || version; }
+function describe(t) {
+  if (t.id === 'main') return `main at ${commit(t.version)}`;
+  if (t.id === 'main-fasthttp') return `main at ${commit(t.version)} on fasthttp master at ${commit(t.fasthttp)}`;
+  return t.version;
+}
 
 // snapshots from before the rename call fasthttp_only fasthttp_floor
 function scenario(name) { return name === 'fasthttp_floor' ? 'fasthttp_only' : name; }

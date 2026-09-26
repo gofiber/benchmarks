@@ -10,9 +10,17 @@ if [[ ! $layouts =~ ^[1-9][0-9]*$ ]]; then
   echo "LAYOUTS must be a positive integer" >&2
   exit 2
 fi
+fasthttp_main=${FASTHTTP_MAIN:-0}
+if [[ ! $fasthttp_main =~ ^[01]$ ]]; then
+  echo "FASTHTTP_MAIN must be 0 or 1" >&2
+  exit 2
+fi
 benchstat=golang.org/x/perf/cmd/benchstat@v0.0.0-20260825160852-19be9d8e6c70
-# id=module builds the module's go.mod pin, id=module@ref that Fiber ref; the first target is the baseline
+# id=module builds the module's go.mod pin, id=module@ref that Fiber ref, id=module@ref@fasthttp-ref that Fiber ref
+# on that fasthttp ref; the first target is the baseline
 targets=(v2=v2 v3.0.0=v3@v3.0.0 v3=v3 main=v3@main)
+# fasthttp's default branch is master: shows what its unreleased changes do to Fiber before Fiber pins them
+if ((fasthttp_main)); then targets+=(main-fasthttp=v3@main@master); fi
 
 cd "$(dirname "$0")"
 root=$PWD
@@ -29,14 +37,15 @@ for target in "${targets[@]}"; do
   module=${target#*=}
   dir=$module
   if [[ $module == *@* ]]; then
-    ref=${module#*@}
-    module=${module%@*}
+    IFS=@ read -r module ref fasthttp_ref <<<"$module"
+    get=("github.com/gofiber/fiber/$module@$ref")
+    [[ -z $fasthttp_ref ]] || get+=("github.com/valyala/fasthttp@$fasthttp_ref")
     # a fresh module resolves the ref with the dependencies that Fiber version ships with
     dir=results/build/$id
     mkdir -p "$dir"
     cp "$module"/*_test.go "$dir"
     printf 'module github.com/gofiber/benchmarks/%s\n\n%s\n' "$module" "$(awk '$1 == "go"' "$module/go.mod")" >"$dir/go.mod"
-    (cd "$dir" && go get "github.com/gofiber/fiber/$module@$ref" && go mod tidy)
+    (cd "$dir" && go get "${get[@]}" && go mod tidy)
   fi
   # the same code in several function layouts: the layout alone moves a scenario by tens of ns on some CPUs
   for ((l = 0; l < layouts; l++)); do

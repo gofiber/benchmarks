@@ -10,6 +10,11 @@ on:
     paths-ignore:
       - "**/*.md"
   workflow_dispatch:
+    inputs:
+      fasthttp_main:
+        description: Also run Fiber main on fasthttp master
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -21,7 +26,8 @@ permissions:
 jobs:
   compare:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 30
+    # a run with fasthttp master times five versions, and a noisy one twice the rounds
+    timeout-minutes: 45
     steps:
       - name: Fetch Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,6 +44,8 @@ jobs:
         run: python3 -m unittest test_paired
 
       - name: Compare Fiber versions
+        env:
+          FASTHTTP_MAIN: ${{ inputs.fasthttp_main && '1' || '0' }}
         run: ./compare.sh
 
       - name: Write job summary

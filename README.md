@@ -25,8 +25,10 @@ COUNT=20 BENCHTIME=1s make compare
 
 It needs Go and python3. A run whose median paired interval is ±10% or wider after `COUNT` rounds gets `COUNT` more.
 `LAYOUTS=5` builds every version that many times with different function layouts, and the rounds cycle through them.
+`FASTHTTP_MAIN=1` adds Fiber `main` on the latest commit of fasthttp's `master` as another version, to see what unreleased fasthttp changes do before Fiber pins them.
 
 CI runs the comparison on every push and pull request. The paired and benchstat tables are in the job summary, the raw results are attached as an artifact.
+A manual run of the Compare workflow has a `fasthttp_main` option that sets `FASTHTTP_MAIN=1`; started on `main`, it is published like every other run.
 
 ## Reading the results
 
