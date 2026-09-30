@@ -77,9 +77,9 @@ select { max-width: 100%; }
 .tile { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: var(--page); border: 1px solid var(--border); border-radius: 10px; }
 .tile-title { margin-bottom: 2px; font-weight: 600; }
 .stat { display: flex; align-items: baseline; gap: 8px; }
-.stat-version { width: 7.2em; color: var(--muted); font-size: 12px; }
+.stat-version { width: 8.5em; color: var(--muted); font-size: 12px; }
 .stat.current .stat-version { color: var(--ink); font-weight: 600; }
-.dep { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.dep { display: block; color: var(--muted); font-size: 11px; font-weight: 400; white-space: nowrap; }
 .stat-value { font-size: 18px; font-weight: 600; white-space: nowrap; }
 .stat-unit { color: var(--ink-2); font-size: 12px; font-weight: 400; }
 .tile-time { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -144,7 +144,8 @@ select { max-width: 100%; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
-thead th { color: var(--muted); font-weight: 600; }
+thead th { color: var(--muted); font-size: 12px; font-weight: 600; white-space: normal; vertical-align: bottom; }
+thead th.current { color: var(--ink); }
 tbody th { padding-top: 14px; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
 td strong { font-weight: 600; }
 .sub { display: block; color: var(--muted); font-size: 12px; }
@@ -292,7 +293,11 @@ function label(t) { return labels[t.id] || t.version; }
 // the fasthttp pin rides under every version, snapshots from before it was recorded simply have none
 function withFasthttp(node, t) {
   node.append(label(t));
-  if (t.fasthttp) node.append(el('span', 'dep', `fasthttp ${t.fasthttp}`));
+  if (t.fasthttp) {
+    const dep = el('span', 'dep', `fasthttp ${commit(t.fasthttp)}`);
+    dep.title = t.fasthttp;
+    node.append(dep);
+  }
   return node;
 }
 // a branch resolves to a pseudo-version that ends in its commit, or to the release tagged on it
@@ -388,6 +393,14 @@ function groupRow(group, span) {
   const cell = el('th', '', group);
   cell.colSpan = span;
   return tableRow('th', [cell]);
+}
+
+// the compared version stands out instead of being spelled out in the Change header, which would hog the width
+function headRow(base, others, target, last) {
+  const head = document.createElement('thead');
+  head.append(tableRow('th', ['Scenario', withFasthttp(el('th'), base),
+    ...others.map((t) => withFasthttp(el('th', t === target ? 'current' : ''), t)), 'Change', last]));
+  return head;
 }
 
 function headline(r, view) {
@@ -518,9 +531,7 @@ function renderOverview(tables, run, [base, ...others], target, view) {
     return tile;
   }));
 
-  const head = document.createElement('thead');
-  head.append(tableRow('th', ['Scenario', withFasthttp(el('th'), base), ...others.map((t) => withFasthttp(el('th'), t)),
-    `Change in ${view.target}`, 'Allocations']));
+  const head = headRow(base, others, target, 'Allocations');
   const body = document.createElement('tbody');
   for (const [group, list] of grouped([...selected.values()])) {
     body.append(groupRow(group, others.length + 4));
@@ -588,9 +599,7 @@ function renderTable(tables, [base, ...others], target, view) {
   const { metric } = view;
   const values = new Map(others.map((t) => [t.id, byName(tables[t.id]?.[metric.unit])]));
   $('details-title').textContent = `Details: ${metric.title.toLowerCase()}`;
-  const head = document.createElement('thead');
-  head.append(tableRow('th', ['Scenario', withFasthttp(el('th'), base), ...others.map((t) => withFasthttp(el('th'), t)),
-    `Change in ${view.target}`, 'Significance']));
+  const head = headRow(base, others, target, 'Significance');
   const body = document.createElement('tbody');
   for (const [group, list] of grouped([...values.get(target.id).values()])) {
     body.append(groupRow(group, others.length + 4));
