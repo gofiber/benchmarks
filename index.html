@@ -43,7 +43,9 @@ body {
   color: var(--ink);
   font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 880px; margin: 0 auto; }
+main { max-width: 1360px; margin: 0 auto; }
+/* tables and bars take the wide page, running text keeps a readable line */
+p { max-width: 840px; }
 a { color: inherit; text-underline-offset: 2px; }
 h1 { margin: 0; font-size: 24px; line-height: 1.25; }
 h2 { margin: 0; font-size: 16px; }
@@ -149,7 +151,8 @@ thead th.current { color: var(--ink); }
 tbody th { padding-top: 14px; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
 td strong { font-weight: 600; }
 .sub { display: block; color: var(--muted); font-size: 12px; }
-.about ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); }
+.about ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); columns: 480px; column-gap: 48px; }
+.about li { break-inside: avoid; }
 footer { color: var(--ink-2); }
 @media (max-width: 560px) {
   .line { grid-template-columns: minmax(72px, 110px) 1fr 52px; gap: 8px; }
