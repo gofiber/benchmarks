@@ -18,7 +18,7 @@ fi
 benchstat=golang.org/x/perf/cmd/benchstat@v0.0.0-20260825160852-19be9d8e6c70
 # id=module builds the module's go.mod pin, id=module@ref that Fiber ref, id=module@ref@fasthttp-ref that Fiber ref
 # on that fasthttp ref; the first target is the baseline
-targets=(v2=v2 v3.0.0=v3@v3.0.0 v3=v3 main=v3@main)
+targets=(v2=v2 v3.0.0=v3@v3.0.0 v3=v3@latest main=v3@main)
 # fasthttp's default branch is master: shows what its unreleased changes do to Fiber before Fiber pins them
 if ((fasthttp_main)); then targets+=(main-fasthttp=v3@main@master); fi
 
