@@ -23,6 +23,39 @@
       }
     ],
     "go": "go1.27.2",
+    "cpu": "Intel(R) Xeon(R) Processor",
+    "date": "2026-10-12T13:38:25Z",
+    "rounds": 10,
+    "layouts": 5,
+    "noise": 4.7,
+    "id": "38255979668",
+    "url": "https://github.com/gofiber/benchmarks/actions/runs/38255979668",
+    "sha": "6a84b06b5d0c2e45ebb9d074e3ae09551ab40fa4"
+  },
+  {
+    "targets": [
+      {
+        "id": "v2",
+        "version": "v2.52.15",
+        "fasthttp": "v1.51.0"
+      },
+      {
+        "id": "v3.0.0",
+        "version": "v3.0.0",
+        "fasthttp": "v1.69.0"
+      },
+      {
+        "id": "v3",
+        "version": "v3.5.0",
+        "fasthttp": "v1.73.0"
+      },
+      {
+        "id": "main",
+        "version": "v3.6.0",
+        "fasthttp": "v1.75.0"
+      }
+    ],
+    "go": "go1.27.2",
     "cpu": "AMD EPYC",
     "date": "2026-10-12T13:22:35Z",
     "rounds": 10,
