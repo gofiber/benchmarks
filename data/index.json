@@ -13,6 +13,39 @@
       },
       {
         "id": "v3",
+        "version": "v3.6.1",
+        "fasthttp": "v1.75.0"
+      },
+      {
+        "id": "main",
+        "version": "v3.6.1",
+        "fasthttp": "v1.75.0"
+      }
+    ],
+    "go": "go1.27.2",
+    "cpu": "AMD EPYC",
+    "date": "2026-10-15T07:50:33Z",
+    "rounds": 10,
+    "layouts": 5,
+    "noise": 5.0,
+    "id": "38700397724",
+    "url": "https://github.com/gofiber/benchmarks/actions/runs/38700397724",
+    "sha": "23f192ef64ac2a42ab81d6bbaa74193f2fd9e3d6"
+  },
+  {
+    "targets": [
+      {
+        "id": "v2",
+        "version": "v2.52.15",
+        "fasthttp": "v1.51.0"
+      },
+      {
+        "id": "v3.0.0",
+        "version": "v3.0.0",
+        "fasthttp": "v1.69.0"
+      },
+      {
+        "id": "v3",
         "version": "v3.6.0",
         "fasthttp": "v1.75.0"
       },
