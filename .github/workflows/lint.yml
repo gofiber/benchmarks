@@ -28,4 +28,5 @@ jobs:
   lint:
     uses: gofiber/.github/.github/workflows/go-lint-multi.yml@main
     with:
-      golangci-lint-version: "v2.13.2"
+      # sync with Makefile
+      golangci-lint-version: v2.14.0
