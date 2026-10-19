@@ -40,6 +40,15 @@ class PairedTest(unittest.TestCase):
             self.assertEqual(rows["v3", "parameter"]["significant"], "False")
             # with fasthttp_only the median half-width would be 1.5
             self.assertEqual(Path(tmp, "noise").read_text(), "0.5\n")
+            # every other target as the baseline, paired round by round as well
+            self.assertFalse(Path(tmp, "base", "v2").exists())
+            with open(Path(tmp, "base", "v3", "paired.csv"), newline="") as f:
+                rows = {(r["target"], r["name"]): r for r in csv.DictReader(f)}
+            self.assertNotIn(("v3", "static"), rows)
+            self.assertAlmostEqual(float(rows["v2", "static"]["delta"]), (100 / 105 - 1) * 100)
+            self.assertAlmostEqual(float(rows["main", "static"]["delta"]), (95 / 105 - 1) * 100)
+            self.assertEqual(rows["main", "static"]["significant"], "True")
+            self.assertTrue(Path(tmp, "base", "main", "paired.csv").exists())
 
 
 if __name__ == "__main__":

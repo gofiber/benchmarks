@@ -107,12 +107,22 @@ columns=()
 for id in "${ids[@]}"; do columns+=("$id=results/$id.txt"); done
 go run "$benchstat" -ignore pkg "${columns[@]}" | tee results/benchstat.txt
 go run "$benchstat" -ignore pkg -format csv "${columns[@]}" >results/benchstat.csv
+# benchstat compares against its first column: every other target leads once, next to paired.py's base/ID/paired.csv
+for ((i = 1; i < ${#ids[@]}; i++)); do
+  mkdir -p "results/base/${ids[i]}"
+  go run "$benchstat" -ignore pkg -format csv "${columns[i]}" "${columns[@]:0:i}" "${columns[@]:i+1}" >"results/base/${ids[i]}/benchstat.csv"
+done
 
 # what was compared, for the results page
 list=()
-for i in "${!ids[@]}"; do list+=("{\"id\":\"${ids[i]}\",\"version\":\"${versions[i]}\",\"fasthttp\":\"${fasthttps[i]}\"}"); done
-printf '{"targets":[%s],"go":"%s","cpu":"%s","date":"%s","rounds":%d,"layouts":%d,"noise":%s}\n' \
+baselines=()
+for i in "${!ids[@]}"; do
+  list+=("{\"id\":\"${ids[i]}\",\"version\":\"${versions[i]}\",\"fasthttp\":\"${fasthttps[i]}\"}")
+  baselines+=("\"${ids[i]}\"")
+done
+printf '{"targets":[%s],"baselines":[%s],"go":"%s","cpu":"%s","date":"%s","rounds":%d,"layouts":%d,"noise":%s}\n' \
   "$(IFS=,; echo "${list[*]}")" \
+  "$(IFS=,; echo "${baselines[*]}")" \
   "$(go version "results/${ids[0]}-l0.test" | sed 's/.*: //')" \
   "$(sed -n '/^cpu: /{s/^cpu: *//;s/ *$//;p;q;}' "results/${ids[0]}.txt")" \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

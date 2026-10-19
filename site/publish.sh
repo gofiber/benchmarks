@@ -8,6 +8,8 @@ id=${RUN_ID:?RUN_ID must name the run}
 
 mkdir -p "$site/data/$id"
 cp "$results/benchstat.csv" "$results/benchstat.txt" "$results/paired.csv" "$site/data/$id/"
+# the same comparisons with every other version as the baseline
+cp -R "$results/base" "$site/data/$id/"
 cp "$(dirname "$0")/index.html" "$site/index.html"
 touch "$site/.nojekyll"
 

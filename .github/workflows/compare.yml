@@ -67,6 +67,7 @@ jobs:
             results/*.txt
             results/benchstat.csv
             results/paired.csv
+            results/base/
             results/meta.json
 
   publish:

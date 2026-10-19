@@ -13,7 +13,7 @@ In-process request benchmarks for Fiber v2 and v3: the latest v2 release against
 | `*/harness_test.go` | Request parsing, timing and response checks, identical in both modules |
 | `*/scenarios_test.go` | The scenarios in each version's API |
 | `compare.sh` | Paired runs of all versions and the `benchstat` comparison |
-| `paired.py` | Median time ratio of each version against v2 per scenario with a sign-test interval |
+| `paired.py` | Median time ratio of each version against every other version per scenario with a sign-test interval |
 | `site/` | The results page and the script that publishes a run to it |
 
 ## Running
@@ -35,6 +35,7 @@ A manual run of the Compare workflow has a `fasthttp_main` option that sets `FAS
 - `sec/op` covers parsing the raw request and the handler, as a server runs them for every request. App construction, serializing the response and the network are not included, so it is not end-to-end latency.
 - Where the linker puts a function changes a cheap scenario by tens of nanoseconds, more than most version differences. Every version is therefore built in `LAYOUTS` layouts, the default one and random ones, and each round moves to the next. The interval covers that spread.
 - Each round runs all versions of a scenario back to back, rotating which goes first. `paired.py` reports the median of the per-round ratios against v2 with a sign-test interval, so load on the CI host that hits both halves of a pair cancels out. `benchstat` still gives the absolute numbers per version and the memory and allocation changes.
+- The results page compares against v2 unless another baseline is picked. `compare.sh` writes the paired and `benchstat` comparisons against every other version to `results/base/<id>/`, so any version of a run can be the baseline.
 - v3.0.0, the latest v3 release and `main` are resolved on every run, `main` at its latest commit. The published metadata names the exact Fiber and fasthttp versions, and the page shows the fasthttp pin under every version.
 - Every scenario checks status, body and required headers before and after timing.
 - `fasthttp_only` runs no Fiber code and shows what the fasthttp version alone changes.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Paired sec/op of each target against the baseline: median of per-round ratios with a sign-test confidence interval.
+# The text output and the noise figure stay with the first target as the baseline.
 import csv
 import json
 import math
@@ -37,11 +38,7 @@ def duration(ns):
     return f"{ns:#.4g}ns"
 
 
-def main(results, ids):
-    base, *targets = ids
-    samples = {i: load(Path(results, f"{i}.txt")) for i in ids}
-    if not samples[base] or any(samples[t].keys() != samples[base].keys() for t in targets):
-        sys.exit(f"{', '.join(ids)} must run the same, non-empty set of scenarios")
+def compare(samples, base, targets):
     rows = []
     for target in targets:
         for name, before in samples[base].items():
@@ -63,11 +60,27 @@ def main(results, ids):
                 "confidence": round(ci[2], 4) if ci else None,
                 "significant": bool(ci) and (ci[0] > 1 or ci[1] < 1),
             })
+    return rows
 
-    with open(Path(results, "paired.csv"), "w", newline="") as f:
+
+def write(path, rows):
+    with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=rows[0].keys())
         w.writeheader()
         w.writerows(rows)
+
+
+def main(results, ids):
+    base, *targets = ids
+    samples = {i: load(Path(results, f"{i}.txt")) for i in ids}
+    if not samples[base] or any(samples[t].keys() != samples[base].keys() for t in targets):
+        sys.exit(f"{', '.join(ids)} must run the same, non-empty set of scenarios")
+    rows = compare(samples, base, targets)
+    write(Path(results, "paired.csv"), rows)
+    # the page can switch the baseline: every other target against the rest, in base/ID/paired.csv
+    for other in targets:
+        Path(results, "base", other).mkdir(parents=True, exist_ok=True)
+        write(Path(results, "base", other, "paired.csv"), compare(samples, other, [i for i in ids if i != other]))
 
     width = max(len(r["name"]) for r in rows)
     column = max(len(i) for i in ids) + len(" sec/op")
