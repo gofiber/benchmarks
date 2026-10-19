@@ -169,7 +169,8 @@ footer { color: var(--ink-2); }
 
   <div class="controls">
     <label class="secondary">Snapshot <select id="run"></select></label>
-    <div class="seg" role="group" aria-label="Version compared with v2" id="targets" hidden></div>
+    <label class="secondary" id="base-field" hidden>Baseline <select id="base"></select></label>
+    <div class="seg" role="group" aria-label="Version compared with the baseline" id="targets" hidden></div>
   </div>
 
   <section class="card" aria-labelledby="overview-title">
@@ -206,7 +207,8 @@ footer { color: var(--ink-2); }
     <h2>Reading the numbers</h2>
     <ul>
       <li>Requests per second are one divided by the median time per request on a single CPU core, from parsing the request to the end of the handler. A real server also serializes the response and sends it over the network, so production throughput is lower.</li>
-      <li>Each round runs every version of a scenario back to back, rotating which goes first. A time change is the median of the per-round ratios against v2, so load on the CI host that hits both halves of a pair cancels out. It can differ slightly from the ratio of the two medians.</li>
+      <li>Each round runs every version of a scenario back to back, rotating which goes first. A time change is the median of the per-round ratios against the baseline, so load on the CI host that hits both halves of a pair cancels out. It can differ slightly from the ratio of the two medians.</li>
+      <li>The baseline is v2 unless another one is picked. Every version of a snapshot can be the baseline, and all changes, intervals and p-values are then computed against it from the same rounds.</li>
       <li>Thin gray bars and <span class="muted">~</span> mean no significant difference: the sign-test interval of a time change includes zero, or benchstat found p &ge; 0.05 for memory, allocations and snapshots from before paired rounds. A run whose median interval is ±10% or wider gets twice the rounds.</li>
       <li>Compare versions within one snapshot. CI machines differ between snapshots, so absolute numbers do not carry over.</li>
       <li>Each version is built several times with different function layouts, and the rounds cycle through them. Where the linker puts a function changes a cheap scenario by tens of nanoseconds on these CPUs, so without this a lucky layout would look like a win.</li>
@@ -258,7 +260,7 @@ const noisyCI = 15;
 const $ = (id) => document.getElementById(id);
 const main = document.querySelector('main');
 const cache = new Map();
-const state = { runs: [], run: null, metric: 'time', target: null, rendered: null };
+const state = { runs: [], run: null, metric: 'time', base: null, target: null, rendered: null };
 const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 3 });
 
 function sig(v) { return Number(v.toPrecision(3)).toLocaleString('en'); }
@@ -290,6 +292,8 @@ function rpsChange(r) { return (100 / (100 + r.pct) - 1) * 100; }
 function versionsOf(run) {
   return run.targets || [{ id: 'v2', version: run.v2 }, { id: 'v3', version: run.v3 }];
 }
+// snapshots published before the baseline could be switched were compared only against their first version
+function baselinesOf(run) { return run.baselines || [versionsOf(run)[0].id]; }
 // main and main on fasthttp master share a pseudo-version, the id tells them apart
 const labels = { main: 'main', 'main-fasthttp': 'main + fasthttp master' };
 function label(t) { return labels[t.id] || t.version; }
@@ -343,7 +347,7 @@ function parse(csv) {
   return tables;
 }
 
-// paired.csv from paired.py: per version, the median of per-round time ratios against v2 with its sign-test interval
+// paired.csv from paired.py: per version, the median of per-round time ratios against the baseline with its sign-test interval
 function pair(tables, csv) {
   if (!csv) return tables;
   // csv.DictWriter ends lines with \r\n
@@ -458,11 +462,24 @@ function rowEl(r, d, view) {
   return row;
 }
 
-function renderTargets(run, [, ...others], target) {
+function renderBaselines(run, base) {
+  const select = $('base');
+  if (select.dataset.run !== run.id) {
+    select.dataset.run = run.id;
+    const bases = versionsOf(run).filter((t) => baselinesOf(run).includes(t.id));
+    select.replaceChildren(...bases.map((t) => new Option(label(t), t.id)));
+    $('base-field').hidden = bases.length < 2;
+  }
+  select.value = base.id;
+}
+
+function renderTargets(run, [base, ...others], target) {
   const group = $('targets');
-  // rebuilt only for another snapshot, so a clicked button keeps its focus
-  if (group.dataset.run !== run.id) {
+  // rebuilt only for another snapshot or baseline, so a clicked button keeps its focus
+  if (group.dataset.run !== run.id || group.dataset.base !== base.id) {
     group.dataset.run = run.id;
+    group.dataset.base = base.id;
+    group.setAttribute('aria-label', `Version compared with ${label(base)}`);
     group.replaceChildren(...others.map((t) => {
       const button = el('button', '', label(t));
       button.type = 'button';
@@ -478,7 +495,7 @@ function renderTargets(run, [, ...others], target) {
 function renderMeta(run, [base, ...others]) {
   const meta = $('meta');
   const rounds = run.rounds ? ` · ${run.rounds} paired rounds${run.layouts ? ` over ${run.layouts} layouts` : ''}` : '';
-  meta.replaceChildren(`Fiber ${base.version} vs ${others.map(describe).join(', ')}${rounds} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
+  meta.replaceChildren(`Fiber ${describe(base)} vs ${others.map(describe).join(', ')}${rounds} · ${run.go} · ${run.cpu} · ${run.date.slice(0, 16).replace('T', ' ')} UTC`);
   const links = [
     ['CI run', run.url],
     [`commit ${(run.sha || '').slice(0, 7)}`, run.sha && `https://github.com/gofiber/benchmarks/commit/${run.sha}`],
@@ -492,12 +509,21 @@ function renderMeta(run, [base, ...others]) {
   }
 }
 
+function median(xs) {
+  if (!xs.length) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = sorted.length / 2;
+  return Number.isInteger(mid) ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[Math.floor(mid)];
+}
 function medianCI(rows) {
-  const cis = rows.filter((r) => !baseline.includes(r.name))
-    .flatMap((r) => [parseFloat(r.ciBase), parseFloat(r.ci)]).filter(Number.isFinite).sort((a, b) => a - b);
-  if (!cis.length) return null;
-  const mid = cis.length / 2;
-  return Number.isInteger(mid) ? (cis[mid - 1] + cis[mid]) / 2 : cis[Math.floor(mid)];
+  return median(rows.filter((r) => !baseline.includes(r.name))
+    .flatMap((r) => [parseFloat(r.ciBase), parseFloat(r.ci)]).filter(Number.isFinite));
+}
+// paired.py's noise figure for any baseline: the median half-width of the time intervals of all versions against it
+function pairedNoise(tables) {
+  const halves = median(Object.values(tables).flatMap((t) => t['sec/op'] || [])
+    .filter((r) => r.lo != null && !baseline.includes(r.name)).map((r) => (r.hi - r.lo) / 2));
+  return halves === null ? null : Math.round(halves * 10) / 10;
 }
 
 function stat(t, sec, current) {
@@ -552,13 +578,13 @@ function renderOverview(tables, run, [base, ...others], target, view) {
   $('numbers').replaceChildren(head, body);
 
   const noise = $('noise');
-  // paired snapshots publish their noise figure, older ones only have benchstat's intervals per version
-  const median = run.rounds ? run.noise : medianCI([...selected.values()]);
-  const noisy = median >= (run.rounds ? noisyPaired : noisyCI);
+  // paired snapshots have an interval per change, older ones only benchstat's intervals per version
+  const spread = run.rounds ? pairedNoise(tables) : medianCI([...selected.values()]);
+  const noisy = spread >= (run.rounds ? noisyPaired : noisyCI);
   noise.className = `note${noisy ? ' warn' : ''}`;
   noise.replaceChildren();
-  if (median === null) return;
-  const shown = Number(median.toFixed(1));
+  if (spread === null) return;
+  const shown = Number(spread.toFixed(1));
   if (noisy) {
     noise.append(el('strong', '', 'High timing noise. '),
       `The median confidence interval of this run is ±${shown}%, so small time differences are not significant. Compare with another snapshot before drawing conclusions.`);
@@ -630,44 +656,54 @@ function fetchText(path) {
 }
 
 // caching the request, not the result, so a click during loading reuses it
-function load(run) {
-  if (!cache.has(run.id)) {
+function load(run, base) {
+  const key = `${run.id}/${base.id}`;
+  if (!cache.has(key)) {
+    // the first version's comparisons sit in the snapshot's directory, the other baselines' in base/ID
+    const dir = base.id === versionsOf(run)[0].id ? `data/${run.id}` : `data/${run.id}/base/${base.id}`;
     // snapshots from before the paired rounds have no paired.csv
     const request = Promise.all([
-      fetchText(`data/${run.id}/benchstat.csv`),
-      run.rounds ? fetchText(`data/${run.id}/paired.csv`) : null,
+      fetchText(`${dir}/benchstat.csv`),
+      run.rounds ? fetchText(`${dir}/paired.csv`) : null,
     ]).then(([benchstat, paired]) => pair(parse(benchstat), paired));
-    request.catch(() => cache.delete(run.id));
-    cache.set(run.id, request);
+    request.catch(() => cache.delete(key));
+    cache.set(key, request);
   }
-  return cache.get(run.id);
+  return cache.get(key);
 }
 
 async function update() {
-  const { run, metric: key, target: wanted } = state;
+  const { run, metric: key, base: wantedBase, target: wanted } = state;
   const entry = state.runs.find((r) => r.id === run);
+  const versions = versionsOf(entry);
+  // a snapshot only has the baselines it was compared against
+  const bases = baselinesOf(entry);
+  const base = versions.find((t) => t.id === (bases.includes(wantedBase) ? wantedBase : bases[0]));
   main.classList.add('loading');
   try {
-    const tables = await load(entry);
+    const tables = await load(entry, base);
     // a newer selection runs its own update, this one is stale
-    if (run !== state.run || key !== state.metric || wanted !== state.target) return;
+    if (run !== state.run || key !== state.metric || wantedBase !== state.base || wanted !== state.target) return;
     main.classList.remove('loading');
-    const versions = versionsOf(entry);
-    const others = versions.slice(1);
+    const others = versions.filter((t) => t.id !== base.id);
     // a snapshot only has the versions it compared
     const target = others.find((t) => t.id === wanted) || others.find((t) => t.id === defaultTarget) || others[0];
+    state.base = base.id;
     state.target = target.id;
-    history.replaceState(null, '', `#run=${run}&metric=${key}&target=${target.id}`);
+    history.replaceState(null, '', `#run=${run}&metric=${key}&base=${base.id}&target=${target.id}`);
     $('run').value = run;
     document.querySelectorAll('[data-metric]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.metric === key)));
     const metric = metrics[key];
-    const view = { metric, base: label(versions[0]), target: label(target) };
-    renderTargets(entry, versions, target);
-    renderMeta(entry, versions);
-    renderOverview(tables, entry, versions, target, view);
+    const view = { metric, base: label(base), target: label(target) };
+    // the baseline leads every list, the others keep the snapshot's order
+    const ordered = [base, ...others];
+    renderBaselines(entry, base);
+    renderTargets(entry, ordered, target);
+    renderMeta(entry, ordered);
+    renderOverview(tables, entry, ordered, target, view);
     renderChart(tables[target.id]?.[metric.unit] || [], view);
-    renderTable(tables, versions, target, view);
-    state.rendered = { run, metric: key, target: target.id };
+    renderTable(tables, ordered, target, view);
+    state.rendered = { run, metric: key, base: base.id, target: target.id };
   } catch (err) {
     if (run === state.run) fail(err);
   }
@@ -675,12 +711,14 @@ async function update() {
 
 function fail(err) {
   main.classList.remove('loading');
-  // keep the controls in line with the snapshot, metric and version still on screen
+  // keep the controls in line with the snapshot, metric and versions still on screen
   if (state.rendered) {
     state.run = state.rendered.run;
     state.metric = state.rendered.metric;
+    state.base = state.rendered.base;
     state.target = state.rendered.target;
     $('run').value = state.run;
+    $('base').value = state.base;
   }
   $('error').textContent = `Could not load the results (${err.message}).`;
 }
@@ -697,11 +735,18 @@ async function start() {
   const params = new URLSearchParams(location.hash.slice(1));
   state.run = state.runs.some((r) => r.id === params.get('run')) ? params.get('run') : state.runs[0].id;
   state.metric = Object.hasOwn(metrics, params.get('metric')) ? params.get('metric') : 'time';
+  state.base = params.get('base');
   state.target = params.get('target');
   await update();
 }
 
 $('run').addEventListener('change', (e) => { state.run = e.target.value; update(); });
+$('base').addEventListener('change', (e) => {
+  // the compared version as the baseline swaps the two
+  if (e.target.value === state.target) state.target = state.base;
+  state.base = e.target.value;
+  update();
+});
 document.querySelectorAll('[data-metric]').forEach((b) => b.addEventListener('click', () => { state.metric = b.dataset.metric; update(); }));
 addEventListener('scroll', hideTip, { passive: true });
 start().catch(fail);

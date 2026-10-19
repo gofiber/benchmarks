@@ -22,6 +22,12 @@
         "fasthttp": "v1.76.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
     "date": "2026-10-19T16:35:10Z",
@@ -60,6 +66,13 @@
         "fasthttp": "v1.76.1-0.20261019020551-b6793996d797"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main",
+      "main-fasthttp"
+    ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
     "date": "2026-10-19T05:52:21Z",
@@ -92,6 +105,12 @@
         "version": "v3.6.2-0.20261015092534-a1ac5133c60c",
         "fasthttp": "v1.75.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
@@ -126,6 +145,12 @@
         "fasthttp": "v1.75.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
     "date": "2026-10-15T07:50:33Z",
@@ -158,6 +183,12 @@
         "version": "v3.6.0",
         "fasthttp": "v1.75.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
@@ -192,6 +223,12 @@
         "fasthttp": "v1.75.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.2",
     "cpu": "Intel(R) Xeon(R) Processor",
     "date": "2026-10-12T13:38:25Z",
@@ -224,6 +261,12 @@
         "version": "v3.6.0",
         "fasthttp": "v1.75.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
@@ -258,6 +301,12 @@
         "fasthttp": "v1.75.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.2",
     "cpu": "AMD EPYC",
     "date": "2026-10-09T06:31:12Z",
@@ -291,6 +340,12 @@
         "fasthttp": "v1.75.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-10-08T14:18:13Z",
@@ -323,6 +378,12 @@
         "version": "v3.5.1-0.20260929111448-ae1ef46ff2cc",
         "fasthttp": "v1.74.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
@@ -362,6 +423,13 @@
         "fasthttp": "v1.74.1-0.20260929111807-e776f751deff"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main",
+      "main-fasthttp"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-30T06:35:09Z",
@@ -399,6 +467,13 @@
         "version": "v3.5.1-0.20260925182002-e10bca7375d8",
         "fasthttp": "v1.74.1-0.20260927142709-0fd343a91244"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main",
+      "main-fasthttp"
     ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
@@ -438,6 +513,13 @@
         "fasthttp": "v1.74.1-0.20260926085806-928e3edec9a2"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main",
+      "main-fasthttp"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-26T13:30:01Z",
@@ -470,6 +552,12 @@
         "version": "v3.5.1-0.20260925182002-e10bca7375d8",
         "fasthttp": "v1.74.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
@@ -504,6 +592,12 @@
         "fasthttp": "v1.74.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-24T19:43:35Z",
@@ -536,6 +630,12 @@
         "version": "v3.5.1-0.20260924145711-d0a059d0d748",
         "fasthttp": "v1.74.0"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
@@ -570,6 +670,12 @@
         "fasthttp": "v1.74.0"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.1",
     "cpu": "Intel(R) Xeon(R) Processor",
     "date": "2026-09-16T13:42:52Z",
@@ -598,6 +704,12 @@
         "id": "main",
         "version": "v3.5.1-0.20260916111451-9f1eda6b315f"
       }
+    ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
     ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
@@ -628,6 +740,12 @@
         "version": "v3.5.1-0.20260914184946-f128422199fe"
       }
     ],
+    "baselines": [
+      "v2",
+      "v3.0.0",
+      "v3",
+      "main"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-15T12:22:21Z",
@@ -640,6 +758,10 @@
   {
     "v2": "v2.52.15",
     "v3": "v3.5.0",
+    "baselines": [
+      "v2",
+      "v3"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-15T06:44:13Z",
@@ -652,6 +774,10 @@
   {
     "v2": "v2.52.15",
     "v3": "v3.5.0",
+    "baselines": [
+      "v2",
+      "v3"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-14T21:17:18Z",
@@ -664,6 +790,10 @@
   {
     "v2": "v2.52.15",
     "v3": "v3.5.0",
+    "baselines": [
+      "v2",
+      "v3"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-14T19:31:56Z",
@@ -674,6 +804,10 @@
   {
     "v2": "v2.52.15",
     "v3": "v3.5.0",
+    "baselines": [
+      "v2",
+      "v3"
+    ],
     "go": "go1.27.1",
     "cpu": "AMD EPYC",
     "date": "2026-09-14T18:26:10Z",
