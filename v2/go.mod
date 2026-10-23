@@ -3,7 +3,7 @@ module github.com/gofiber/benchmarks/v2
 go 1.27.0
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.15
+	github.com/gofiber/fiber/v2 v2.52.16
 	github.com/valyala/fasthttp v1.51.0
 )
 
